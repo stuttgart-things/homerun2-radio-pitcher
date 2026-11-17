@@ -200,7 +200,10 @@ Off by default. All texts then come from fixed templates. With
 fixed text airs instead, when the answer:
 
 - contains a number that is not in the input (a changed, computed or
-  invented number)
+  invented number), or uses one more often than the input does
+- spells a number out that the input does not (`sixty-four`, `nine`,
+  `dozen`, German `zwölf`, `vierundsechzig`): numbers stay digits
+- drops the source name of an infra fact (e.g. `homerun2-dev`)
 - is empty, or is too long for the card or for `RADIO_MESSAGE_MAX`
 - times out or errors
 
