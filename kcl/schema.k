@@ -45,6 +45,9 @@ schema RadioPitcher:
     ollamaUrl: str = ""
     ollamaModel: str = ""
     ollamaApi: "openai" | "native" = "openai"
+    # Optional API key (e.g. OpenRouter) from an existing Secret, as LLM_API_KEY
+    llmApiKeySecretName: str = ""
+    llmApiKeySecretKey: str = "api-key"
 
     # ClusterRole for sources that use the in-cluster ServiceAccount (an
     # empty kubeconfig in sources.yaml): list pods, nodes, namespaces, Flux

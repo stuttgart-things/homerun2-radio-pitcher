@@ -37,7 +37,18 @@ _env = [
     {name: "OLLAMA_URL", value: config.ollamaUrl}
     {name: "OLLAMA_MODEL", value: config.ollamaModel}
     {name: "OLLAMA_API", value: config.ollamaApi}
-] if config.llmEnabled else []) + [
+] if config.llmEnabled else []) + ([
+    {
+        name: "LLM_API_KEY"
+        valueFrom: {
+            secretKeyRef: {
+                name: config.llmApiKeySecretName
+                key: config.llmApiKeySecretKey
+                optional: False
+            }
+        }
+    }
+] if config.llmEnabled and config.llmApiKeySecretName else []) + [
     {name: k, value: v} for k, v in config.extraEnvVars
 ]
 

@@ -26,11 +26,13 @@ const (
 	APINative = "native" // POST /api/chat
 )
 
-// Ollama talks to a local Ollama server.
+// Ollama talks to a local Ollama server, or to any OpenAI-compatible
+// endpoint (e.g. OpenRouter at https://openrouter.ai/api) with APIKey.
 type Ollama struct {
 	URL         string // base URL, e.g. http://ollama.ollama.svc:11434
 	Model       string // e.g. llama3.2:3b
 	API         string // APIOpenAI (default) or APINative
+	APIKey      string // optional, sent as "Authorization: Bearer"
 	Temperature float64
 	HTTP        *http.Client
 }
@@ -78,6 +80,9 @@ func (o *Ollama) Complete(ctx context.Context, system, user string) (string, err
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if o.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+o.APIKey)
+	}
 
 	hc := o.HTTP
 	if hc == nil {

@@ -25,6 +25,8 @@ _opts = {
     ollamaUrl = option("config.ollamaUrl")
     ollamaModel = option("config.ollamaModel")
     ollamaApi = option("config.ollamaApi")
+    llmApiKeySecretName = option("config.llmApiKeySecretName")
+    llmApiKeySecretKey = option("config.llmApiKeySecretKey")
     inClusterReadAccess = option("config.inClusterReadAccess")
     servicePort = option("config.servicePort")
     extraEnvVars = option("config.extraEnvVars")
@@ -75,6 +77,10 @@ config: schema.RadioPitcher = schema.RadioPitcher {
         ollamaModel = _opts.ollamaModel
     if _opts.ollamaApi:
         ollamaApi = _opts.ollamaApi
+    if _opts.llmApiKeySecretName:
+        llmApiKeySecretName = _opts.llmApiKeySecretName
+    if _opts.llmApiKeySecretKey:
+        llmApiKeySecretKey = _opts.llmApiKeySecretKey
     if _opts.inClusterReadAccess:
         inClusterReadAccess = _true(_opts.inClusterReadAccess)
     if _opts.servicePort:

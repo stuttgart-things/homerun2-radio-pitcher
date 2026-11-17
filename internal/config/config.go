@@ -49,6 +49,7 @@ type Config struct {
 	OllamaURL   string
 	OllamaModel string
 	OllamaAPI   string
+	LLMAPIKey   string
 	LLMTimeout  time.Duration
 }
 
@@ -91,6 +92,7 @@ func Load(getenv func(string) string) (*Config, error) {
 		OllamaURL:   e.str("OLLAMA_URL", ""),
 		OllamaModel: e.str("OLLAMA_MODEL", ""),
 		OllamaAPI:   e.str("OLLAMA_API", moderation.APIOpenAI),
+		LLMAPIKey:   e.str("LLM_API_KEY", ""),
 		LLMTimeout:  e.duration("OLLAMA_TIMEOUT", 20*time.Second),
 	}
 

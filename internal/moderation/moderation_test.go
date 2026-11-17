@@ -137,6 +137,25 @@ func TestOllamaOpenAI(t *testing.T) {
 	}
 }
 
+func TestOllamaAPIKey(t *testing.T) {
+	var auth []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = append(auth, r.Header.Get("Authorization"))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"ok"}}]}`))
+	}))
+	defer srv.Close()
+
+	for _, key := range []string{"sk-or-test", ""} {
+		o := &Ollama{URL: srv.URL, Model: "m", APIKey: key}
+		if _, err := o.Complete(context.Background(), "sys", "user"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if auth[0] != "Bearer sk-or-test" || auth[1] != "" {
+		t.Fatalf("Authorization headers: %q", auth)
+	}
+}
+
 func TestOllamaNative(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/chat" {
