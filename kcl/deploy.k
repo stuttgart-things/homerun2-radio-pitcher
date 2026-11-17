@@ -10,22 +10,30 @@ _configDir = "/etc/homerun2-radio-pitcher"
 _kubeconfigDir = "/etc/homerun2-radio-pitcher/kubeconfigs"
 
 _redisSecretName = config.redisPasswordSecretName or "{}-redis".format(config.name)
+# The password Secret is either named (existing) or rendered from redisPassword.
+# When there is one, the ref is required: a wrong name or key keeps the pod in
+# CreateContainerConfigError with a clear event instead of starting without a
+# password and failing every pitch with NOAUTH. No Secret: no REDIS_PASSWORD.
+_redisSecretKey = config.redisPasswordSecretKey if config.redisPasswordSecretName else "password"
+_hasRedisSecret = bool(config.redisPasswordSecretName or config.redisPassword)
 
 _env = [
     {name: "LOG_FORMAT", value: "json"}
     {name: "REDIS_ADDR", value: config.redisAddr}
     {name: "REDIS_PORT", value: config.redisPort}
     {name: "REDIS_STREAM", value: config.redisStream}
+] + ([
     {
         name: "REDIS_PASSWORD"
         valueFrom: {
             secretKeyRef: {
                 name: _redisSecretName
-                key: config.redisPasswordSecretKey
-                optional: True
+                key: _redisSecretKey
+                optional: False
             }
         }
     }
+] if _hasRedisSecret else []) + [
     {name: "RADIO_SCHEDULE_PATH", value: "{}/schedule.yaml".format(_configDir)}
     {name: "RADIO_TIMEZONE", value: config.timezone}
 ] + ([
