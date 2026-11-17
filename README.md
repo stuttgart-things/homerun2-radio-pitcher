@@ -72,36 +72,68 @@ If a new version is broken, the error is logged and `/ready` reports it, and
 the last good version stays on air.
 
 ```yaml
-# clock: the format clock, repeats every hour. Key: minute of the hour
-# (":00" to ":59"). `segment` names the segment, every other key is a
-# parameter of it.
+# clock: the default format clock, repeats every hour. The key is the minute
+# of the hour (":00" to ":59"), `segment` names the segment, every other key
+# is a parameter of it. A minute without a slot leaves the panel to the
+# catcher's idle clock. It airs outside of every show and in shows without
+# their own clock.
 clock:
   ":00": { segment: time-check }
-  ":05": { segment: news, count: 3 }
+  ":05": { segment: news, count: 2 }
   ":15": { segment: infra-facts, count: 2 }
-  ":20": { segment: news, count: 2, feeds: [cncf] }
   ":30": { segment: time-check }
   ":35": { segment: news, count: 2 }
-  ":45": { segment: infra-facts, count: 2, sources: [harvester] }
-  ":50": { segment: news, count: 2 }
-  # Between slots the catcher shows its idle clock. The pitcher does not air
-  # this entry; it documents what the panel shows.
+  ":45": { segment: infra-facts, count: 2 }
+  # Between slots the catcher shows its idle clock. Not aired by the pitcher;
+  # documents what the panel shows.
   default: { segment: idle-clock, style: rotate }
 
-# programme: time windows of the day. Parsed and validated, not aired yet
-# (follow-up). A window that ends before it starts crosses midnight.
+# clocks: named clocks for shows, same format. An empty clock is silence:
+# the panel stays with the catcher's idle screen.
+clocks:
+  morning:
+    ":00": { segment: time-check }
+    ":05": { segment: news, count: 3 }
+    ":15": { segment: infra-facts, count: 1 }
+    ":20": { segment: news, count: 2, feeds: [cncf] }
+    ":30": { segment: time-check }
+    ":35": { segment: news, count: 2 }
+    ":50": { segment: news, count: 2 }
+  night: {}
+
+# programme: the shows of the day. A window that ends before it starts
+# crosses midnight; windows must not overlap, and a time outside every
+# window airs the default clock.
+#   clock: a name from clocks; empty = the default clock
+#   extra: segments aired once per window, before the clock slot of the
+#          same minute: a name (airs at the start of the window) or
+#          { segment: ..., at: "HH:MM", <params> }. Segments that do not
+#          exist yet are logged and skipped.
+#   brightness: parsed, not aired (dimming belongs to the catcher)
 programme:
-  "07:00-10:00": { show: morning-show, extra: [weather, calendar] }
+  "07:00-10:00": { show: morning-show, clock: morning, extra: [weather, calendar] }
   "10:00-17:00": { show: daytime }
-  "17:00-19:00": { show: after-work, extra: [daily-summary] }
-  "19:00-07:00": { show: night, brightness: 20 }
+  "17:00-19:00":
+    show: after-work
+    extra:
+      - { segment: daily-summary, at: "17:30" }
+  "19:00-07:00": { show: night, clock: night, brightness: 20 }
 ```
+
+At 07:00 the morning show starts: `weather` and `calendar` (its extras), then
+the `:00` slot of the `morning` clock. From 10:00 the default clock airs again,
+`daily-summary` comes once at 17:30, and from 19:00 the `night` clock is empty,
+so the panel stays with the catcher's idle screen until 07:00. A pitcher that
+starts after an extra's time does not air it late; it waits for the next
+window. The director logs `show on air` when the show changes.
 
 Validation reports every problem at once: a minute outside `:00`–`:59`, the
 same minute twice, a slot without `segment`, `count` outside 1–10, a malformed
-window, a show without a name, or a brightness outside 0–100. A slot naming a
-segment that does not exist (yet), such as `tabletennis-stats`, is logged and
-skipped. It is not an error, so the schedule can be written ahead of the code.
+window, overlapping windows, a show without a name or with a clock that is not
+in `clocks`, an extra without `segment` or with `at` outside its window, or a
+brightness outside 0–100. A slot or extra naming a segment that does not
+exist (yet), such as `weather` or `daily-summary`, is logged and skipped. It
+is not an error, so the schedule can be written ahead of the code.
 
 Check a schedule before you merge it:
 

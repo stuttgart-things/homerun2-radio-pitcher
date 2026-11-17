@@ -16,31 +16,52 @@ config.scheduleYaml: |
   # Lives in git and is changed by PR. The pitcher re-reads it when the file
   # changes (e.g. a ConfigMap update): no restart, no release.
   #
-  # clock: the format clock, repeats every hour. The key is the minute of the
-  # hour (":00" to ":59"), `segment` names the segment, every other key is a
-  # parameter of it. A minute without a slot leaves the panel to the catcher's
-  # idle clock.
+  # clock: the default format clock, repeats every hour. The key is the minute
+  # of the hour (":00" to ":59"), `segment` names the segment, every other key
+  # is a parameter of it. A minute without a slot leaves the panel to the
+  # catcher's idle clock. It airs outside of every show and in shows without
+  # their own clock.
   clock:
     ":00": { segment: time-check }
-    ":05": { segment: news, count: 3 }
+    ":05": { segment: news, count: 2 }
     ":15": { segment: infra-facts, count: 2 }
-    ":20": { segment: news, count: 2, feeds: [cncf] }
     ":30": { segment: time-check }
     ":35": { segment: news, count: 2 }
     ":45": { segment: infra-facts, count: 2 }
-    ":50": { segment: news, count: 2 }
     # Between slots the catcher shows its idle clock. Not aired by the pitcher;
     # documents what the panel shows.
     default: { segment: idle-clock, style: rotate }
 
-  # programme: time windows of the station's day. Parsed and validated, not yet
-  # aired (follow-up issue). A window that ends before it starts crosses
-  # midnight.
+  # clocks: named clocks for shows, same format. An empty clock is silence:
+  # the panel stays with the catcher's idle screen.
+  clocks:
+    morning:
+      ":00": { segment: time-check }
+      ":05": { segment: news, count: 3 }
+      ":15": { segment: infra-facts, count: 1 }
+      ":20": { segment: news, count: 2, feeds: [cncf] }
+      ":30": { segment: time-check }
+      ":35": { segment: news, count: 2 }
+      ":50": { segment: news, count: 2 }
+    night: {}
+
+  # programme: the shows of the day. A window that ends before it starts
+  # crosses midnight; windows must not overlap, and a time outside every
+  # window airs the default clock.
+  #   clock: a name from clocks; empty = the default clock
+  #   extra: segments aired once per window, before the clock slot of the
+  #          same minute: a name (airs at the start of the window) or
+  #          { segment: ..., at: "HH:MM", <params> }. Segments that do not
+  #          exist yet are logged and skipped.
+  #   brightness: parsed, not aired (dimming belongs to the catcher)
   programme:
-    "07:00-10:00": { show: morning-show, extra: [weather, calendar] }
+    "07:00-10:00": { show: morning-show, clock: morning, extra: [weather, calendar] }
     "10:00-17:00": { show: daytime }
-    "17:00-19:00": { show: after-work, extra: [daily-summary] }
-    "19:00-07:00": { show: night, brightness: 20 }
+    "17:00-19:00":
+      show: after-work
+      extra:
+        - { segment: daily-summary, at: "17:30" }
+    "19:00-07:00": { show: night, clock: night, brightness: 20 }
 config.sourcesYaml: |
   # sources.yaml: where the infra-facts segment gets its numbers.
   # Every source is queried live when the segment airs; a source that fails is
