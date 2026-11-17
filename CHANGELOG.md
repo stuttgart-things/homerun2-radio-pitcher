@@ -1,3 +1,10 @@
+# [0.5.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.4.0...v0.5.0) (2026-11-17)
+
+
+### Features
+
+* **ui:** read-only programme UI behind the homerun2 portal ([cdca354](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/cdca354a8c67a222f96a0dd968e7b48b1430e244)), closes [#23](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/23)
+
 # [0.4.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.3.0...v0.4.0) (2026-11-17)
 
 
