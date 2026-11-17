@@ -1,0 +1,29 @@
+# schedule.yaml: the programme of homerun2 radio.
+# Lives in git and is changed by PR. The pitcher re-reads it when the file
+# changes (e.g. a ConfigMap update): no restart, no release.
+#
+# clock: the format clock, repeats every hour. The key is the minute of the
+# hour (":00" to ":59"), `segment` names the segment, every other key is a
+# parameter of it. A minute without a slot leaves the panel to the catcher's
+# idle clock.
+clock:
+  ":00": { segment: time-check }
+  ":05": { segment: news, count: 3 }
+  ":15": { segment: infra-facts, count: 2 }
+  ":20": { segment: news, count: 2, feeds: [cncf] }
+  ":30": { segment: time-check }
+  ":35": { segment: news, count: 2 }
+  ":45": { segment: infra-facts, count: 2 }
+  ":50": { segment: news, count: 2 }
+  # Between slots the catcher shows its idle clock. Not aired by the pitcher;
+  # documents what the panel shows.
+  default: { segment: idle-clock, style: rotate }
+
+# programme: time windows of the station's day. Parsed and validated, not yet
+# aired (follow-up issue). A window that ends before it starts crosses
+# midnight.
+programme:
+  "07:00-10:00": { show: morning-show, extra: [weather, calendar] }
+  "10:00-17:00": { show: daytime }
+  "17:00-19:00": { show: after-work, extra: [daily-summary] }
+  "19:00-07:00": { show: night, brightness: 20 }

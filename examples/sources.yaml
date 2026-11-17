@@ -1,0 +1,27 @@
+# sources.yaml: where the infra-facts segment gets its numbers.
+# Every source is queried live when the segment airs; a source that fails is
+# skipped, the others still report.
+#
+#   name:       how the source is called on air (cluster name)
+#   type:       kubernetes | flux | harvester
+#   kubeconfig: path to a kubeconfig; empty = in-cluster ServiceAccount
+#   context:    kubeconfig context; empty = current context
+#   enabled:    false switches the source off (default true)
+#   facts:      subset of the facts of the type; empty = all
+#               kubernetes: pods, nodes, namespaces
+#               flux:       kustomizations, helmreleases
+#               harvester:  vms, oldest-vm
+sources:
+  - name: homerun2-dev
+    type: kubernetes
+  - name: homerun2-dev
+    type: flux
+    facts: [kustomizations]
+  - name: harvester
+    type: harvester
+    kubeconfig: /etc/homerun2-radio-pitcher/kubeconfigs/harvester
+  - name: platform
+    type: kubernetes
+    kubeconfig: /etc/homerun2-radio-pitcher/kubeconfigs/platform
+    facts: [pods, nodes]
+    enabled: false

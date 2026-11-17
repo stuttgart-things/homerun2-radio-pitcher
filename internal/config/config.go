@@ -1,0 +1,198 @@
+// Package config reads the service configuration from the environment, once
+// at startup.
+package config
+
+import (
+	"errors"
+	"fmt"
+	"log/slog"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	homerun "github.com/stuttgart-things/homerun-library/v4"
+
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/moderation"
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/panel"
+)
+
+// Config is the whole service configuration.
+type Config struct {
+	Port string
+
+	Redis  homerun.RedisConfig
+	Stream string
+	DryRun bool
+
+	SchedulePath string
+	SourcesPath  string
+	Location     *time.Location
+
+	System   string
+	Severity string
+	Author   string
+
+	Spacing    time.Duration
+	Title      panel.Title
+	MessageMax int
+
+	NewsFeeds   string
+	NewsTimeout time.Duration
+	NewsSeenFor time.Duration
+	NewsMaxAge  time.Duration
+
+	SourceTimeout time.Duration
+	FactsRecent   int
+
+	LLMEnabled  bool
+	OllamaURL   string
+	OllamaModel string
+	OllamaAPI   string
+	LLMTimeout  time.Duration
+}
+
+// Load reads the environment. getenv is os.Getenv outside tests.
+func Load(getenv func(string) string) (*Config, error) {
+	e := env{get: getenv}
+	c := &Config{
+		Port: e.str("PORT", "8080"),
+		Redis: homerun.RedisConfig{
+			Addr:     e.str("REDIS_ADDR", "localhost"),
+			Port:     e.str("REDIS_PORT", "6379"),
+			Password: e.str("REDIS_PASSWORD", ""),
+		},
+		Stream: e.str("REDIS_STREAM", "ambient"),
+		DryRun: e.boolean("RADIO_DRY_RUN", false),
+
+		SchedulePath: e.str("RADIO_SCHEDULE_PATH", "/etc/homerun2-radio-pitcher/schedule.yaml"),
+		SourcesPath:  e.str("RADIO_SOURCES_PATH", ""),
+
+		System:   e.str("RADIO_SYSTEM", "radio"),
+		Severity: e.str("RADIO_SEVERITY", "INFO"),
+		Author:   e.str("RADIO_AUTHOR", "radio"),
+
+		Spacing: e.duration("RADIO_ITEM_SPACING", 15*time.Second),
+		Title: panel.Title{
+			Lines: e.integer("RADIO_TITLE_LINES", panel.Card4x6.Lines),
+			Width: e.integer("RADIO_TITLE_WIDTH", panel.Card4x6.Width),
+		},
+		MessageMax: e.integer("RADIO_MESSAGE_MAX", 120),
+
+		NewsFeeds:   e.str("RADIO_NEWS_FEEDS", ""),
+		NewsTimeout: e.duration("RADIO_NEWS_TIMEOUT", 10*time.Second),
+		NewsSeenFor: e.duration("RADIO_NEWS_SEEN_FOR", 12*time.Hour),
+		NewsMaxAge:  e.duration("RADIO_NEWS_MAX_AGE", 48*time.Hour),
+
+		SourceTimeout: e.duration("RADIO_SOURCE_TIMEOUT", 10*time.Second),
+		FactsRecent:   e.integer("RADIO_FACTS_RECENT", 4),
+
+		LLMEnabled:  e.boolean("RADIO_LLM_ENABLED", false),
+		OllamaURL:   e.str("OLLAMA_URL", ""),
+		OllamaModel: e.str("OLLAMA_MODEL", ""),
+		OllamaAPI:   e.str("OLLAMA_API", moderation.APIOpenAI),
+		LLMTimeout:  e.duration("OLLAMA_TIMEOUT", 20*time.Second),
+	}
+
+	tz := e.str("RADIO_TIMEZONE", "Europe/Berlin")
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		e.errs = append(e.errs, fmt.Errorf("RADIO_TIMEZONE %q: %w", tz, err))
+	}
+	c.Location = loc
+
+	if c.Stream == "" {
+		e.errs = append(e.errs, errors.New("REDIS_STREAM must not be empty"))
+	}
+	if c.Title.Lines < 1 || c.Title.Width < 4 {
+		e.errs = append(e.errs, errors.New("RADIO_TITLE_LINES must be >= 1 and RADIO_TITLE_WIDTH >= 4"))
+	}
+	if c.MessageMax < 10 {
+		e.errs = append(e.errs, errors.New("RADIO_MESSAGE_MAX must be >= 10"))
+	}
+	if c.OllamaAPI != moderation.APIOpenAI && c.OllamaAPI != moderation.APINative {
+		e.errs = append(e.errs, fmt.Errorf("OLLAMA_API %q: openai or native", c.OllamaAPI))
+	}
+	if c.LLMEnabled && (c.OllamaURL == "" || c.OllamaModel == "") {
+		e.errs = append(e.errs, errors.New("RADIO_LLM_ENABLED needs OLLAMA_URL and OLLAMA_MODEL"))
+	}
+	return c, errors.Join(e.errs...)
+}
+
+type env struct {
+	get  func(string) string
+	errs []error
+}
+
+func (e *env) str(key, def string) string {
+	if v, ok := e.lookup(key); ok {
+		return v
+	}
+	return def
+}
+
+func (e *env) lookup(key string) (string, bool) {
+	v := strings.TrimSpace(e.get(key))
+	return v, v != ""
+}
+
+func (e *env) integer(key string, def int) int {
+	v, ok := e.lookup(key)
+	if !ok {
+		return def
+	}
+	i, err := strconv.Atoi(v)
+	if err != nil {
+		e.errs = append(e.errs, fmt.Errorf("%s %q: not a number", key, v))
+		return def
+	}
+	return i
+}
+
+func (e *env) boolean(key string, def bool) bool {
+	v, ok := e.lookup(key)
+	if !ok {
+		return def
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		e.errs = append(e.errs, fmt.Errorf("%s %q: true or false", key, v))
+		return def
+	}
+	return b
+}
+
+func (e *env) duration(key string, def time.Duration) time.Duration {
+	v, ok := e.lookup(key)
+	if !ok {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d < 0 {
+		e.errs = append(e.errs, fmt.Errorf("%s %q: a duration like 15s or 12h", key, v))
+		return def
+	}
+	return d
+}
+
+// SetupLogging configures slog from LOG_FORMAT (json|text) and LOG_LEVEL.
+func SetupLogging() {
+	var level slog.Level
+	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+	opts := &slog.HandlerOptions{Level: level}
+	var h slog.Handler = slog.NewJSONHandler(os.Stdout, opts)
+	if strings.ToLower(os.Getenv("LOG_FORMAT")) == "text" {
+		h = slog.NewTextHandler(os.Stdout, opts)
+	}
+	slog.SetDefault(slog.New(h))
+	homerun.SetLogger(slog.Default())
+}
