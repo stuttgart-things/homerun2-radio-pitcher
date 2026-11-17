@@ -208,8 +208,9 @@ func serve() error {
 			Segments: st.segments,
 			Sources:  st.sources,
 			Title:    cfg.Title,
+			Token:    cfg.UIToken,
 		}).Handler()
-		slog.Info("programme UI on", "path", cfg.BasePath+"/")
+		slog.Info("programme UI on", "path", cfg.BasePath+"/", "controls", cfg.UIToken != "")
 	}
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

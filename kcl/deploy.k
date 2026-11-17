@@ -40,6 +40,17 @@ _env = [
 ] + ([
     {name: "BASE_PATH", value: config.basePath}
 ] if config.basePath else []) + ([
+    {
+        name: "RADIO_UI_TOKEN"
+        valueFrom: {
+            secretKeyRef: {
+                name: config.uiTokenSecretName
+                key: config.uiTokenSecretKey
+                optional: False
+            }
+        }
+    }
+] if config.uiEnabled and config.uiTokenSecretName else []) + ([
     {name: "RADIO_SOURCES_PATH", value: "{}/sources.yaml".format(_configDir)}
 ] if config.sourcesYaml else []) + ([
     {name: "RADIO_NEWS_FEEDS", value: config.newsFeeds}

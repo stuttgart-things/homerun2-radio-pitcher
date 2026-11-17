@@ -44,12 +44,12 @@ func TestErrors(t *testing.T) {
 	_, err := Load(getenv(map[string]string{
 		"RADIO_TIMEZONE": "Mars/Base", "RADIO_ITEM_SPACING": "soon", "RADIO_TITLE_LINES": "x",
 		"RADIO_DRY_RUN": "maybe", "OLLAMA_API": "openrouter", "RADIO_LLM_ENABLED": "true",
-		"BASE_PATH": "/radio/../x",
+		"BASE_PATH": "/radio/../x", "RADIO_UI_TOKEN": "short",
 	}))
 	if err == nil {
 		t.Fatal("expected errors")
 	}
-	for _, want := range []string{"RADIO_TIMEZONE", "RADIO_ITEM_SPACING", "RADIO_TITLE_LINES", "RADIO_DRY_RUN", "OLLAMA_API", "OLLAMA_URL", "BASE_PATH"} {
+	for _, want := range []string{"RADIO_TIMEZONE", "RADIO_ITEM_SPACING", "RADIO_TITLE_LINES", "RADIO_DRY_RUN", "OLLAMA_API", "OLLAMA_URL", "BASE_PATH", "RADIO_UI_TOKEN"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error lacks %s: %v", want, err)
 		}

@@ -52,6 +52,8 @@ type Config struct {
 	BasePath string
 	// UIEnabled switches the read-only programme UI (RADIO_UI_ENABLED).
 	UIEnabled bool
+	// UIToken enables the session controls of the UI (RADIO_UI_TOKEN).
+	UIToken string
 
 	LLMEnabled  bool
 	OllamaURL   string
@@ -97,6 +99,7 @@ func Load(getenv func(string) string) (*Config, error) {
 		FactsRecent:   e.integer("RADIO_FACTS_RECENT", 4),
 
 		UIEnabled:   e.boolean("RADIO_UI_ENABLED", true),
+		UIToken:     strings.TrimSpace(e.str("RADIO_UI_TOKEN", "")),
 		LLMEnabled:  e.boolean("RADIO_LLM_ENABLED", false),
 		OllamaURL:   e.str("OLLAMA_URL", ""),
 		OllamaModel: e.str("OLLAMA_MODEL", ""),
@@ -110,6 +113,9 @@ func Load(getenv func(string) string) (*Config, error) {
 		e.errs = append(e.errs, err)
 	}
 	c.BasePath = bp
+	if c.UIToken != "" && len(c.UIToken) < 16 {
+		e.errs = append(e.errs, errors.New("RADIO_UI_TOKEN must be at least 16 characters"))
+	}
 
 	tz := e.str("RADIO_TIMEZONE", "Europe/Berlin")
 	loc, err := time.LoadLocation(tz)

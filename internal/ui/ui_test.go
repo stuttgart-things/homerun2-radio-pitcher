@@ -54,6 +54,12 @@ func (fakeSource) Facts(context.Context) ([]sources.Fact, error) {
 
 func server(t *testing.T, base string, at string) (*httptest.Server, *fake) {
 	t.Helper()
+	srv, f, _ := serverWithToken(t, base, at, "")
+	return srv, f
+}
+
+func serverWithToken(t *testing.T, base, at, token string) (*httptest.Server, *fake, *director.Director) {
+	t.Helper()
 	s, err := schedule.Parse(strings.NewReader(plan))
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +68,7 @@ func server(t *testing.T, base string, at string) (*httptest.Server, *fake) {
 	now, _ := time.ParseInLocation("2006-01-02 15:04", "2026-11-17 "+at, loc)
 	f := &fake{}
 	segs := segment.NewRegistry(segment.TimeCheck{}, f)
-	d := &director.Director{Segments: segs, Pitcher: nopPitcher{}, Location: loc, Sleep: func(context.Context, time.Duration) error { return nil }}
+	d := &director.Director{Schedule: staticSchedule{s}, Segments: segs, Pitcher: nopPitcher{}, Location: loc, Sleep: func(context.Context, time.Duration) error { return nil }}
 	if _, err := d.Air(context.Background(), "fake", schedule.Params{"count": 1}, now); err != nil {
 		t.Fatal(err)
 	}
@@ -73,14 +79,18 @@ func server(t *testing.T, base string, at string) (*httptest.Server, *fake) {
 		BasePath: base, Version: "v1.2.3", Location: loc,
 		Schedule: func() (*schedule.Schedule, error) { return s, nil },
 		Director: d, Segments: segs, Sources: tracked, Title: panel.Card4x6,
-		Now: func() time.Time { return now },
+		Now: func() time.Time { return now }, Token: token,
 	}
 	root := http.NewServeMux()
 	root.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "ok") })
 	srv := httptest.NewServer(handlers.Mount(base, root, u.Handler()))
 	t.Cleanup(srv.Close)
-	return srv, f
+	return srv, f, d
 }
+
+type staticSchedule struct{ s *schedule.Schedule }
+
+func (f staticSchedule) Get() (*schedule.Schedule, bool, error) { return f.s, false, nil }
 
 type nopPitcher struct{}
 
@@ -225,6 +235,128 @@ func TestUntil(t *testing.T) {
 	for d, want := range map[time.Duration]string{0: "now", 4*time.Minute + 20*time.Second: "in 4 min", 135 * time.Minute: "in 2h 15min"} {
 		if got := until(d); got != want {
 			t.Errorf("until(%v) = %q, want %q", d, got, want)
+		}
+	}
+}
+
+const testToken = "s3cret-token-for-tests"
+
+func do(t *testing.T, method, url string, form url.Values, header ...string) (*http.Response, string) {
+	t.Helper()
+	req, _ := http.NewRequest(method, url, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for i := 0; i+1 < len(header); i += 2 {
+		req.Header.Set(header[i], header[i+1])
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	b, _ := io.ReadAll(resp.Body)
+	return resp, string(b)
+}
+
+func TestNoControlsWithoutToken(t *testing.T) {
+	srv, _ := server(t, "/radio", "12:00")
+	_, body := get(t, srv.URL+"/radio/")
+	if strings.Contains(body, `id="control"`) {
+		t.Error("controls shown without RADIO_UI_TOKEN")
+	}
+	for _, p := range []string{"/radio/ui/login", "/radio/ui/control/pause"} {
+		if resp, _ := do(t, http.MethodPost, srv.URL+p, nil, "HX-Request", "true"); resp.StatusCode != http.StatusNotFound {
+			t.Errorf("%s: %d", p, resp.StatusCode)
+		}
+	}
+}
+
+func TestLoginAndControls(t *testing.T) {
+	srv, _, d := serverWithToken(t, "/radio", "12:00", testToken)
+	hx := []string{"HX-Request", "true"}
+
+	_, body := get(t, srv.URL+"/radio/")
+	if !strings.Contains(body, `name="token"`) || strings.Contains(body, "control/pause") {
+		t.Fatal("locked page should show the token form only")
+	}
+	// a page request gets the error in the panel (htmx does not swap 4xx)
+	if resp, body := do(t, http.MethodPost, srv.URL+"/radio/ui/login", url.Values{"token": {"wrong"}}, hx...); resp.StatusCode != 200 || !strings.Contains(body, "wrong token") {
+		t.Fatalf("wrong token: %d %s", resp.StatusCode, body)
+	}
+	// without htmx's header the login is refused too
+	if resp, _ := do(t, http.MethodPost, srv.URL+"/radio/ui/login", url.Values{"token": {testToken}}); resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("login without HX-Request: %d", resp.StatusCode)
+	}
+	resp, body := do(t, http.MethodPost, srv.URL+"/radio/ui/login", url.Values{"token": {testToken}}, hx...)
+	if resp.StatusCode != 200 || !strings.Contains(body, "control/pause") {
+		t.Fatalf("login: %d %s", resp.StatusCode, body)
+	}
+	var cookie *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == cookieName {
+			cookie = c
+		}
+	}
+	if cookie == nil || !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode || cookie.Path != "/radio/" || strings.Contains(cookie.Value, testToken) {
+		t.Fatalf("cookie = %+v", cookie)
+	}
+	ck := []string{"Cookie", cookieName + "=" + cookie.Value}
+	// bearer token for scripts, no cookie or htmx needed
+	bearer := []string{"Authorization", "Bearer " + testToken}
+
+	// CSRF: the cookie alone does not change anything
+	if resp, body := do(t, http.MethodPost, srv.URL+"/radio/ui/control/pause", url.Values{"minutes": {"30"}}, ck...); resp.StatusCode != http.StatusForbidden || strings.Contains(body, "paused until") {
+		t.Fatalf("cookie without HX-Request: %d", resp.StatusCode)
+	}
+	resp, body = do(t, http.MethodPost, srv.URL+"/radio/ui/control/pause", url.Values{"minutes": {"30"}}, append(ck, hx...)...)
+	if resp.StatusCode != 200 || resp.Header.Get("HX-Trigger") != "radio-changed" || !strings.Contains(body, "paused until 12:30") {
+		t.Fatalf("pause: %d %s", resp.StatusCode, body)
+	}
+	loc, _ := time.LoadLocation("Europe/Berlin")
+	if d.Overrides(time.Date(2026, 11, 17, 12, 0, 0, 0, loc)).PausedUntil.IsZero() {
+		t.Fatal("director not paused")
+	}
+	_, body = get(t, srv.URL+"/radio/ui/part/now")
+	if !strings.Contains(body, "<b>paused</b> until 12:30") {
+		t.Fatalf("now part lacks the pause: %s", body)
+	}
+	if resp, body := do(t, http.MethodPost, srv.URL+"/radio/ui/control/pause", url.Values{"minutes": {"99999"}}, bearer...); resp.StatusCode != http.StatusBadRequest || !strings.Contains(body, "minutes") {
+		t.Fatalf("bad minutes: %d %s", resp.StatusCode, body)
+	}
+	do(t, http.MethodPost, srv.URL+"/radio/ui/control/resume", nil, append(ck, hx...)...)
+	resp, body = do(t, http.MethodPost, srv.URL+"/radio/ui/control/clock", url.Values{"clock": {"night"}, "minutes": {"60"}}, bearer...)
+	if resp.StatusCode != 200 || !strings.Contains(body, "clock night until 13:00") {
+		t.Fatalf("clock: %d %s", resp.StatusCode, body)
+	}
+	_, body = get(t, srv.URL+"/radio/ui/part/now")
+	if !strings.Contains(body, "clock <b>night</b> until 13:00") || !strings.Contains(body, "Empty clock") {
+		t.Fatalf("now part lacks the clock switch: %s", body)
+	}
+	if resp, _ := do(t, http.MethodPost, srv.URL+"/radio/ui/control/clock", url.Values{"clock": {"night"}, "minutes": {"60"}}, "Authorization", "Bearer nope"); resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("wrong bearer: %d", resp.StatusCode)
+	}
+	do(t, http.MethodPost, srv.URL+"/radio/ui/control/restore", nil, bearer...)
+
+	resp, body = do(t, http.MethodPost, srv.URL+"/radio/ui/control/skip", nil, bearer...)
+	if resp.StatusCode != 200 || !strings.Contains(body, "the slot at 12:15 is skipped") {
+		t.Fatalf("skip: %d %s", resp.StatusCode, body)
+	}
+	_, body = get(t, srv.URL+"/radio/ui/part/now")
+	if !strings.Contains(body, "<s>fake</s>") {
+		t.Fatalf("now part does not mark the skipped slot: %s", body)
+	}
+	resp, body = do(t, http.MethodPost, srv.URL+"/radio/ui/control/air", url.Values{"segment": {"fake"}, "params": {"count=1"}}, bearer...)
+	if resp.StatusCode != 200 || !strings.Contains(body, "fake goes on air") {
+		t.Fatalf("air: %d %s", resp.StatusCode, body)
+	}
+	if resp, _ := do(t, http.MethodPost, srv.URL+"/radio/ui/control/explode", nil, bearer...); resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("unknown action: %d", resp.StatusCode)
+	}
+
+	// logout clears the cookie
+	resp, _ = do(t, http.MethodPost, srv.URL+"/radio/ui/logout", nil, append(ck, hx...)...)
+	for _, c := range resp.Cookies() {
+		if c.Name == cookieName && c.MaxAge >= 0 {
+			t.Fatalf("logout cookie = %+v", c)
 		}
 	}
 }

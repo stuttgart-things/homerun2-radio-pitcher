@@ -49,6 +49,8 @@ type Server struct {
 	Now func() time.Time
 	// PreviewTimeout bounds a preview; 0 means 60s.
 	PreviewTimeout time.Duration
+	// Token enables the session controls (RADIO_UI_TOKEN); empty: read-only.
+	Token string
 
 	preview sync.Mutex // one preview at a time: it queries sources and the model
 }
@@ -67,6 +69,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /ui/manifest.json", s.manifest)
 	mux.HandleFunc("GET /ui/fragment/on-air", s.part("fragment-on-air"))
 	mux.HandleFunc("GET /ui/fragment/last-aired", s.part("fragment-last-aired"))
+	if s.Token != "" {
+		mux.HandleFunc("GET /ui/part/control", s.part("control"))
+		mux.HandleFunc("POST /ui/login", s.login)
+		mux.HandleFunc("POST /ui/logout", s.logout)
+		mux.HandleFunc("POST /ui/control/{action}", s.control)
+	}
 	return mux
 }
 
@@ -88,6 +96,14 @@ type view struct {
 	NowPct   float64
 	Extras   []extraView
 
+	Controls  bool // session controls are configured
+	LoggedIn  bool
+	Override  *overrideView
+	Clocks    []string
+	Durations []durationOption
+	Notice    string
+	NoticeErr bool
+
 	Aired    []director.Aired
 	Sources  []sources.Status
 	Segments []string
@@ -106,6 +122,7 @@ type slotView struct {
 	Unknown bool
 	Next    bool
 	Past    bool
+	Skipped bool // a session override skips it this hour
 }
 
 type nextView struct {
@@ -160,9 +177,17 @@ func (s *Server) build(r *http.Request) view {
 	if s.Director != nil {
 		v.OnAir = s.Director.OnAir()
 		v.Aired = s.Director.Recent(20)
+		v.Override = overrides(s.Director.Overrides(now), now)
 	}
+	v.Controls = s.Token != ""
+	v.LoggedIn = v.Controls && s.authorized(r) != ""
+	v.Durations = durations
 	for _, t := range s.Sources {
-		v.Sources = append(v.Sources, t.Status())
+		st := t.Status()
+		if !st.At.IsZero() {
+			st.At = st.At.In(s.loc())
+		}
+		v.Sources = append(v.Sources, st)
 	}
 	sched, err := s.Schedule()
 	if err != nil {
@@ -204,9 +229,14 @@ func (s *Server) build(r *http.Request) view {
 		}
 	}
 
+	v.Clocks = append([]string{"default"}, sortedKeys(sched.Clocks)...)
 	name, slots := sched.ClockAt(now)
-	v.Clock = name
 	at, next, ok := sched.Next(now, known)
+	if s.Director != nil {
+		name, slots = s.Director.ClockAt(sched, now)
+		at, next, ok = s.Director.Next(now)
+	}
+	v.Clock = name
 	ms := make([]int, 0, len(slots))
 	for m := range slots {
 		ms = append(ms, m)
@@ -222,6 +252,7 @@ func (s *Server) build(r *http.Request) view {
 			Unknown: !known(sl.Segment),
 			Next:    ok && at.Minute() == m && at.Hour() == now.Hour(),
 			Past:    m <= now.Minute(),
+			Skipped: skipped(s.Director, now, m),
 		})
 	}
 	if ok {
@@ -368,4 +399,26 @@ func (s *Server) manifest(w http.ResponseWriter, _ *http.Request) {
 			{ID: "last-aired", Title: "Last aired", URL: s.BasePath + "/ui/fragment/last-aired", RefreshSeconds: 15},
 		},
 	})
+}
+
+func sortedKeys(m map[string]schedule.Clock) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// skipped reports whether a session override skips minute m of this hour.
+func skipped(d *director.Director, now time.Time, m int) bool {
+	if d == nil {
+		return false
+	}
+	sk := d.Overrides(now).Skip
+	if sk.IsZero() {
+		return false
+	}
+	sk = sk.In(now.Location())
+	return sk.Hour() == now.Hour() && sk.Minute() == m && sk.YearDay() == now.YearDay()
 }

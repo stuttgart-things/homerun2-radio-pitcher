@@ -322,7 +322,11 @@ func parseTimeOfDay(s string) (TimeOfDay, error) {
 // Due returns the slots aired at the minute of t, in order: the extras of
 // the show on air that are due now, then the slot of its clock. t must
 // already be in the station's time zone.
-func (p *Schedule) Due(t time.Time) []Slot {
+func (p *Schedule) Due(t time.Time) []Slot { return p.DueWithClock(t, "") }
+
+// DueWithClock is Due with the clock of the show replaced by the named clock
+// (a session override). An empty or unknown name changes nothing.
+func (p *Schedule) DueWithClock(t time.Time, override string) []Slot {
 	var due []Slot
 	clock := p.Clock
 	if show, ok := p.ShowAt(t); ok {
@@ -339,6 +343,11 @@ func (p *Schedule) Due(t time.Time) []Slot {
 		if show.Clock != "" {
 			clock = p.Clocks[show.Clock].Slots
 		}
+	}
+	if c, ok := p.Clocks[override]; ok {
+		clock = c.Slots
+	} else if override == "default" {
+		clock = p.Clock
 	}
 	if s, ok := clock[t.Minute()]; ok {
 		due = append(due, s)
