@@ -47,6 +47,10 @@ type Config struct {
 	SourceTimeout time.Duration
 	FactsRecent   int
 
+	// ScoutURL and ScoutToken reach homerun2-scout for daily-summary.
+	ScoutURL   string
+	ScoutToken string
+
 	// BasePath is the URL prefix of the UI (BASE_PATH), e.g. "/radio"
 	// behind homerun2-portal; "" serves it at the root.
 	BasePath string
@@ -97,6 +101,8 @@ func Load(getenv func(string) string) (*Config, error) {
 
 		SourceTimeout: e.duration("RADIO_SOURCE_TIMEOUT", 10*time.Second),
 		FactsRecent:   e.integer("RADIO_FACTS_RECENT", 4),
+		ScoutURL:      e.str("RADIO_SCOUT_URL", ""),
+		ScoutToken:    strings.TrimSpace(e.str("RADIO_SCOUT_TOKEN", "")),
 
 		UIEnabled:   e.boolean("RADIO_UI_ENABLED", true),
 		UIToken:     strings.TrimSpace(e.str("RADIO_UI_TOKEN", "")),

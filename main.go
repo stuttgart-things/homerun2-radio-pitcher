@@ -25,6 +25,7 @@ import (
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/moderation"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/pitcher"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/schedule"
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/scout"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/segment"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/sources"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/ui"
@@ -133,6 +134,14 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 		log.Warn("no sources configured (RADIO_SOURCES_PATH), infra-facts slots stay silent")
 	}
 
+	var scoutClient segment.Analytics
+	if cfg.ScoutURL != "" {
+		scoutClient = &scout.Client{URL: cfg.ScoutURL, Token: cfg.ScoutToken, HTTP: &http.Client{Timeout: cfg.SourceTimeout}}
+		log.Info("scout on", "url", cfg.ScoutURL, "token", cfg.ScoutToken != "")
+	} else {
+		log.Warn("no scout configured (RADIO_SCOUT_URL), daily-summary slots stay silent")
+	}
+
 	segs := segment.NewRegistry(
 		segment.TimeCheck{},
 		&segment.News{
@@ -151,6 +160,14 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 			MessageMax: cfg.MessageMax,
 			Timeout:    cfg.SourceTimeout,
 			Recent:     cfg.FactsRecent,
+		},
+		&segment.DailySummary{
+			Scout:      scoutClient,
+			Moderator:  mod,
+			Title:      cfg.Title,
+			MessageMax: cfg.MessageMax,
+			Timeout:    cfg.SourceTimeout,
+			Own:        cfg.System,
 		},
 	)
 
@@ -292,7 +309,7 @@ func validate() error {
 	if err != nil {
 		return err
 	}
-	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{})
+	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{})
 	for _, u := range s.Unknown(known.Has) {
 		slog.Warn("unknown segment, will be skipped", "slot", u, "known", known.Names())
 	}
