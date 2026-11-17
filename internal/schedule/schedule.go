@@ -346,6 +346,35 @@ func (p *Schedule) Due(t time.Time) []Slot {
 	return due
 }
 
+// Next returns the first minute after t (at most a day ahead) at which a
+// slot is due whose segment airs (known), and those slots. ok is false when
+// nothing airs within a day.
+func (p *Schedule) Next(t time.Time, known func(string) bool) (at time.Time, slots []Slot, ok bool) {
+	at = t.Truncate(time.Minute)
+	for range 24 * 60 {
+		at = at.Add(time.Minute)
+		var due []Slot
+		for _, s := range p.Due(at) {
+			if known == nil || known(s.Segment) {
+				due = append(due, s)
+			}
+		}
+		if len(due) > 0 {
+			return at, due, true
+		}
+	}
+	return time.Time{}, nil, false
+}
+
+// ClockAt returns the slots of the clock on air at t: the show's named clock
+// or the default one, and the name ("default" for the default clock).
+func (p *Schedule) ClockAt(t time.Time) (string, map[int]Slot) {
+	if show, ok := p.ShowAt(t); ok && show.Clock != "" {
+		return show.Clock, p.Clocks[show.Clock].Slots
+	}
+	return "default", p.Clock
+}
+
 // ShowAt returns the programme window t falls in, if any.
 func (p *Schedule) ShowAt(t time.Time) (Show, bool) {
 	for _, s := range p.Programme {

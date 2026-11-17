@@ -42,7 +42,11 @@ on a free panel. Concept: stuttgart-things/homerun-library#146.
 - `internal/panel`: card title fitting (word wrap like the catcher)
 - `internal/pitcher`: `Redis` (homerun-library `Pitcher.Enqueue` with the
   stream override), `Writer` (dry run)
-- `internal/handlers`: `/health`, `/ready`, `/metrics`
+- `internal/handlers`: `/health`, `/ready`, `/metrics`, `Mount` (UI under
+  `BASE_PATH`, probes at the root)
+- `internal/ui`: read-only programme UI (htmx, vendored `static/htmx.min.js`),
+  preview (`segment.Preview` ctx: no state change), portal manifest and
+  fragments (homerun2-portal contract, `hr-*` classes)
 - `kcl/`: Deployment, ConfigMap (schedule + sources), optional Redis Secret,
   optional ClusterRole for in-cluster sources; profile in
   `tests/kcl-deploy-profile.yaml`

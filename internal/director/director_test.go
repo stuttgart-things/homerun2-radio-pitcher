@@ -160,7 +160,7 @@ func TestAirErrors(t *testing.T) {
 	broken := &countSeg{name: "news", err: errors.New("feeds down")}
 	var observed []string
 	d, rec, _ := setup(t, plan, broken)
-	d.Observe = func(seg string, err error) { observed = append(observed, seg+":"+errText(err)) }
+	d.Observe = func(seg string, err error) { observed = append(observed, seg+":"+okOrErr(err)) }
 
 	if _, err := d.Air(context.Background(), "news", nil, time.Now()); err == nil {
 		t.Fatal("segment error not returned")
@@ -211,7 +211,7 @@ func (b *blockingSeg) Build(context.Context, time.Time, schedule.Params) ([]segm
 	return nil, nil
 }
 
-func errText(err error) string {
+func okOrErr(err error) string {
 	if err == nil {
 		return "ok"
 	}

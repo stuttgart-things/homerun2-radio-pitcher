@@ -274,6 +274,55 @@ programme:
 	}
 }
 
+func TestNextAndClockAt(t *testing.T) {
+	p, err := Parse(strings.NewReader(shows))
+	if err != nil {
+		t.Fatal(err)
+	}
+	all := func(string) bool { return true }
+	for from, want := range map[string]string{
+		"07:00": "07:05 news",               // morning clock
+		"06:59": "07:00 weather,time-check", // extra + clock at the window start
+		"22:30": "06:00 time-check",         // night is silent, then the default clock
+		"17:20": "17:30 daily-summary",      // extra with its own time
+	} {
+		tm, _ := time.Parse("15:04", from)
+		at, slots, ok := p.Next(tm, all)
+		if got := at.Format("15:04") + " " + segments(slots); !ok || got != want {
+			t.Errorf("Next(%s) = %q, want %q", from, got, want)
+		}
+	}
+	// unknown segments are passed over
+	tm, _ := time.Parse("15:04", "06:59")
+	at, slots, _ := p.Next(tm, func(s string) bool { return s != "weather" })
+	if got := at.Format("15:04") + " " + segments(slots); got != "07:00 time-check" {
+		t.Errorf("Next with unknown = %q", got)
+	}
+	if name, slots := p.ClockAt(tm); name != "default" || len(slots) != 2 {
+		t.Errorf("ClockAt(06:59) = %s %d", name, len(slots))
+	}
+	tm, _ = time.Parse("15:04", "23:00")
+	if name, slots := p.ClockAt(tm); name != "night" || len(slots) != 0 {
+		t.Errorf("ClockAt(23:00) = %s %d", name, len(slots))
+	}
+	silent, _ := Parse(strings.NewReader("clock:\n  \":00\": { segment: x }\n"))
+	if _, _, ok := silent.Next(tm, func(string) bool { return false }); ok {
+		t.Error("Next found a slot although nothing is known")
+	}
+}
+
+func TestParseParams(t *testing.T) {
+	p, err := ParseParams([]string{"count=2", "feeds=cncf,kubernetes"})
+	if err != nil || p.Int("count", 0) != 2 || strings.Join(p.Strings("feeds"), "|") != "cncf|kubernetes" {
+		t.Fatalf("p = %v, %v", p, err)
+	}
+	for _, bad := range [][]string{{"count"}, {"=x"}, {"count=0"}} {
+		if _, err := ParseParams(bad); err == nil {
+			t.Errorf("ParseParams(%v) accepted", bad)
+		}
+	}
+}
+
 func segments(slots []Slot) string {
 	names := make([]string, len(slots))
 	for i, s := range slots {

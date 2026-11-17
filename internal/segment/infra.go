@@ -80,7 +80,9 @@ func (s *InfraFacts) Build(ctx context.Context, _ time.Time, p schedule.Params) 
 			Title:   s.Title.Fit(f.Title),
 			Message: panel.Truncate(s.Moderator.Phrase(ctx, f.Message, s.MessageMax, f.Source), s.MessageMax),
 		})
-		s.remember(f.ID)
+		if !IsPreview(ctx) {
+			s.remember(f.ID)
+		}
 	}
 	return items, nil
 }

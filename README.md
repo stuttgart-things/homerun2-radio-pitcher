@@ -335,6 +335,8 @@ failed call airs the fixed text.
 | `OLLAMA_TIMEOUT` | `20s` | per call |
 | `RADIO_DRY_RUN` | `false` | print messages as JSON lines instead of pitching |
 | `PORT` | `8080` | |
+| `BASE_PATH` | | prefix of the programme UI, e.g. `/radio` behind homerun2-portal |
+| `RADIO_UI_ENABLED` | `true` | serve the read-only programme UI |
 | `LOG_FORMAT` / `LOG_LEVEL` | `json` / `info` | `text`; `debug` also logs why a model answer was rejected |
 
 A wrong value (an unknown time zone, a malformed duration, LLM enabled
@@ -364,6 +366,38 @@ kubectl -n homerun2 exec deploy/homerun2-radio-pitcher -- /ko-app/homerun2-radio
 | `GET /health` | liveness and version |
 | `GET /ready` | 200 when a schedule is loaded and Redis answers. The body names the schedule state (and a stale-schedule error), Redis, and `lastAired` |
 | `GET /metrics` | Prometheus; `homerun2_radio_items_total{segment,result}` |
+| `GET <BASE_PATH>/` | programme UI (below) |
+| `GET <BASE_PATH>/ui/manifest.json` | fragments for homerun2-portal: `on-air`, `last-aired` |
+
+`/health`, `/ready` and `/metrics` stay at the root whatever `BASE_PATH` is.
+
+### Programme UI
+
+A read-only page (htmx) for the people next to the panel:
+
+- **On air**: the show and its clock, what airs next and when, the day as a
+  timeline with the current position, the extras of the show (pending,
+  done, or not built yet)
+- **Clock**: the slots of the clock on air, the next one highlighted;
+  segments that do not exist yet are marked as skipped
+- **Last aired**: the last 20 cards with their time and segment (since the
+  start of the pod)
+- **Sources**: each source's last query: when, how long, how many facts, or
+  the error. Sources are queried when infra-facts airs, not by the page.
+- **Preview**: builds a segment now with parameters (`count=2 feeds=cncf`),
+  as the next slot would air it, without pitching it. The cards are wrapped
+  like the matrix wraps them; a title that does not fit is red. A preview
+  marks no headline as seen and no fact as recent, so it does not change
+  what airs; it does query the feeds, the sources and the model (one
+  preview at a time).
+
+Behind [homerun2-portal](https://github.com/stuttgart-things/homerun2-portal)
+the pitcher runs with `BASE_PATH=/radio`; the portal proxies `/radio/*` to
+it, shows the page under `/ui/radio`, puts the `on-air` and `last-aired`
+fragments on its overview, and its theme reaches the page through
+`X-Forwarded-Prefix`. Without the portal the page works on its own at
+`http://<pod>:8080/radio/`. The UI changes nothing on air; controlling the
+running station is #24.
 
 ## Deployment
 

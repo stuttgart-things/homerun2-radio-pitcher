@@ -8,6 +8,7 @@ config.redisStream: ambient
 config.redisPasswordSecretName: redis-stack-auth
 config.redisPasswordSecretKey: redis-password
 config.timezone: Europe/Berlin
+config.basePath: /radio
 config.newsFeeds: "cncf=https://www.cncf.io/feed/,kubernetes=https://kubernetes.io/feed.xml"
 config.inClusterReadAccess: true
 config.kubeconfigSecret: homerun2-radio-pitcher-kubeconfigs

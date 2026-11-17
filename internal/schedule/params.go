@@ -6,6 +6,24 @@ import (
 	"strings"
 )
 
+// ParseParams reads "key=value" pairs (as `once` and the UI's preview take
+// them). A value that is an integer becomes an int.
+func ParseParams(kvs []string) (Params, error) {
+	p := Params{}
+	for _, kv := range kvs {
+		k, v, ok := strings.Cut(kv, "=")
+		if !ok || strings.TrimSpace(k) == "" {
+			return nil, fmt.Errorf("parameter %q, want key=value", kv)
+		}
+		if n, err := strconv.Atoi(v); err == nil {
+			p[k] = n
+		} else {
+			p[k] = v
+		}
+	}
+	return p, p.validate()
+}
+
 // Params are the parameters of a slot, every key besides `segment`.
 type Params map[string]any
 
