@@ -12,7 +12,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 )
 
 // Client completes one chat turn.
@@ -84,9 +83,11 @@ func (o *Ollama) Complete(ctx context.Context, system, user string) (string, err
 		req.Header.Set("Authorization", "Bearer "+o.APIKey)
 	}
 
+	// No client timeout: the caller's context sets it (Moderator.Timeout,
+	// OLLAMA_TIMEOUT), so a slow remote model is not cut off at a fixed 30s.
 	hc := o.HTTP
 	if hc == nil {
-		hc = &http.Client{Timeout: 30 * time.Second}
+		hc = http.DefaultClient
 	}
 	resp, err := hc.Do(req)
 	if err != nil {
