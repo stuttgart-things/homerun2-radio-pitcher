@@ -3,6 +3,7 @@ package sources
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
 	"strconv"
 	"time"
@@ -42,6 +43,15 @@ func Build(cfgs []Config, timeout time.Duration) ([]Source, []error) {
 	var errs []error
 	for _, c := range cfgs {
 		if !c.IsEnabled() {
+			continue
+		}
+		if c.Type == TypePrometheus {
+			p, err := NewPrometheus(c, &http.Client{Timeout: timeout})
+			if err != nil {
+				errs = append(errs, fmt.Errorf("source %s/%s: %w", c.Type, c.Name, err))
+				continue
+			}
+			out = append(out, p)
 			continue
 		}
 		rc, err := RestConfig(c.Kubeconfig, c.Context)
