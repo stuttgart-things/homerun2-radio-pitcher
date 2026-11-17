@@ -336,7 +336,8 @@ failed call airs the fixed text.
 | `RADIO_DRY_RUN` | `false` | print messages as JSON lines instead of pitching |
 | `PORT` | `8080` | |
 | `BASE_PATH` | | prefix of the programme UI, e.g. `/radio` behind homerun2-portal |
-| `RADIO_UI_ENABLED` | `true` | serve the read-only programme UI |
+| `RADIO_UI_ENABLED` | `true` | serve the programme UI |
+| `RADIO_UI_TOKEN` | | at least 16 characters; enables the session controls of the UI (below); unset: the UI is read-only |
 | `LOG_FORMAT` / `LOG_LEVEL` | `json` / `info` | `text`; `debug` also logs why a model answer was rejected |
 
 A wrong value (an unknown time zone, a malformed duration, LLM enabled
@@ -396,8 +397,39 @@ the pitcher runs with `BASE_PATH=/radio`; the portal proxies `/radio/*` to
 it, shows the page under `/ui/radio`, puts the `on-air` and `last-aired`
 fragments on its overview, and its theme reaches the page through
 `X-Forwarded-Prefix`. Without the portal the page works on its own at
-`http://<pod>:8080/radio/`. The UI changes nothing on air; controlling the
-running station is #24.
+`http://<pod>:8080/radio/`.
+
+### Session controls
+
+With `RADIO_UI_TOKEN` set, the page gets a **Control** section. The schedule
+in git stays the programme; the controls only lay short-lived overrides on
+top of it, for the running pod:
+
+| Control | Effect |
+|---|---|
+| Pause (15 min … 12 h) | nothing airs until then; "Resume now" ends it |
+| Skip | the next slot that would air is skipped once |
+| Switch the clock (15 min … 12 h) | `default` or a clock from `clocks:` replaces the show's clock, e.g. `night` for silence; extras still air |
+| Air now | a segment with parameters airs at once (unless a slot is on air), also while paused |
+
+Overrides end on their own (at most 24 h), survive a schedule reload, and are
+lost on a restart. "On air" and "next" show them, and every change is logged
+(`override: ...`).
+
+The token is entered once in the page ("Unlock"); the page then holds an
+`HttpOnly`, `SameSite=Strict` cookie (12 h, a hash of the token, not the
+token). A change through the cookie also needs htmx's `HX-Request` header,
+which a form on another site cannot send. Scripts use the token directly:
+
+```bash
+curl -X POST -H "Authorization: Bearer $RADIO_UI_TOKEN" -d minutes=60 \
+  https://portal.example/radio/ui/control/pause
+curl -X POST -H "Authorization: Bearer $RADIO_UI_TOKEN" -d segment=news -d params=count=1 \
+  https://portal.example/radio/ui/control/air
+```
+
+Actions: `pause` (`minutes`), `resume`, `skip`, `unskip`, `clock` (`clock`,
+`minutes`), `restore`, `air` (`segment`, `params`).
 
 ## Deployment
 

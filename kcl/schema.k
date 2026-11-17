@@ -41,6 +41,9 @@ schema RadioPitcher:
     # with uiEnabled = False
     basePath: str = ""
     uiEnabled: bool = True
+    # Session controls of the UI: RADIO_UI_TOKEN from an existing Secret
+    uiTokenSecretName: str = ""
+    uiTokenSecretKey: str = "ui-token"
     # "name=url,name=url"
     newsFeeds: str = ""
 

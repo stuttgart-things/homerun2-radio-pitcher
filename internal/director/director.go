@@ -68,6 +68,8 @@ type Director struct {
 	lastSlot  string // minute already handled, "2006-01-02T15:04"
 	lastShow  string // show on air at the last tick, "" outside the programme
 	recent    []Aired
+	overrides Overrides
+	ctx       context.Context // of Run, for Air now
 	onAir     atomic.Bool
 	lastAired atomic.Pointer[time.Time]
 	wg        sync.WaitGroup
@@ -76,6 +78,9 @@ type Director struct {
 // Run ticks at the start of every minute until ctx ends, then waits for a
 // segment still on air.
 func (d *Director) Run(ctx context.Context) error {
+	d.mu.Lock()
+	d.ctx = ctx
+	d.mu.Unlock()
 	d.reload()
 	for {
 		now := time.Now()
@@ -129,8 +134,22 @@ func (d *Director) Tick(ctx context.Context, now time.Time, async bool) {
 		return
 	}
 	d.showChange(s, now)
+	o := d.Overrides(now)
+	if !o.PausedUntil.IsZero() {
+		if len(s.Due(now)) > 0 {
+			d.logger().Info("slot skipped, station paused", "until", o.PausedUntil.Format("15:04"))
+		}
+		return
+	}
+	if !o.Skip.IsZero() && o.Skip.Equal(now.Truncate(time.Minute)) {
+		d.logger().Info("slot skipped on request", "at", key)
+		d.mu.Lock()
+		d.overrides.Skip = time.Time{}
+		d.mu.Unlock()
+		return
+	}
 	var slots []schedule.Slot
-	for _, slot := range s.Due(now) {
+	for _, slot := range s.DueWithClock(now, o.Clock) {
 		if !d.Segments.Has(slot.Segment) {
 			d.logger().Debug("slot skipped, unknown segment", "segment", slot.Segment)
 			continue

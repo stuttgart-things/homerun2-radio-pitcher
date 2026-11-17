@@ -44,9 +44,12 @@ on a free panel. Concept: stuttgart-things/homerun-library#146.
   stream override), `Writer` (dry run)
 - `internal/handlers`: `/health`, `/ready`, `/metrics`, `Mount` (UI under
   `BASE_PATH`, probes at the root)
-- `internal/ui`: read-only programme UI (htmx, vendored `static/htmx.min.js`),
+- `internal/ui`: programme UI (htmx, vendored `static/htmx.min.js`),
   preview (`segment.Preview` ctx: no state change), portal manifest and
-  fragments (homerun2-portal contract, `hr-*` classes)
+  fragments (homerun2-portal contract, `hr-*` classes); session controls
+  behind `RADIO_UI_TOKEN` (`control.go`: cookie + `HX-Request`, or bearer)
+- `internal/director/overrides.go`: pause, skip, clock switch, air now; in
+  memory, expiring, applied in `Tick` and `Next`
 - `kcl/`: Deployment, ConfigMap (schedule + sources), optional Redis Secret,
   optional ClusterRole for in-cluster sources; profile in
   `tests/kcl-deploy-profile.yaml`

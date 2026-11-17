@@ -28,6 +28,7 @@ kcl run kcl -D config.scheduleYaml="$(cat examples/schedule.yaml)"
 | `config.timezone` | `Europe/Berlin` | |
 | `config.basePath` | | `BASE_PATH` of the programme UI, e.g. `/radio` behind homerun2-portal |
 | `config.uiEnabled` | `true` | read-only programme UI |
+| `config.uiTokenSecretName`, `config.uiTokenSecretKey` | , `ui-token` | existing Secret with `RADIO_UI_TOKEN`: enables the session controls; required ref |
 | `config.newsFeeds` | | `name=url,name=url` |
 | `config.llmEnabled`, `config.ollamaUrl`, `config.ollamaModel`, `config.ollamaApi` | off, , , `openai` | |
 | `config.llmApiKeySecretName`, `config.llmApiKeySecretKey` | , `api-key` | existing Secret with an API key (e.g. OpenRouter), as `LLM_API_KEY`; required ref |
