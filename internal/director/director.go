@@ -53,6 +53,7 @@ type Director struct {
 
 	mu        sync.Mutex
 	lastSlot  string // minute already handled, "2006-01-02T15:04"
+	lastShow  string // show on air at the last tick, "" outside the programme
 	onAir     atomic.Bool
 	lastAired atomic.Pointer[time.Time]
 	wg        sync.WaitGroup
@@ -113,22 +114,34 @@ func (d *Director) Tick(ctx context.Context, now time.Time, async bool) {
 	if s == nil {
 		return
 	}
-	slot, ok := s.Due(now)
-	if !ok {
-		return
+	d.showChange(s, now)
+	var slots []schedule.Slot
+	for _, slot := range s.Due(now) {
+		if !d.Segments.Has(slot.Segment) {
+			d.logger().Debug("slot skipped, unknown segment", "segment", slot.Segment)
+			continue
+		}
+		slots = append(slots, slot)
 	}
-	if !d.Segments.Has(slot.Segment) {
-		d.logger().Debug("slot skipped, unknown segment", "segment", slot.Segment)
+	if len(slots) == 0 {
 		return
 	}
 	if !d.onAir.CompareAndSwap(false, true) {
-		d.logger().Warn("previous slot still on air, slot skipped", "segment", slot.Segment, "at", key)
+		d.logger().Warn("previous slot still on air, slot skipped", "segment", slots[0].Segment, "at", key)
 		return
 	}
 	run := func() {
 		defer d.onAir.Store(false)
-		if _, err := d.Air(ctx, slot.Segment, slot.Params, now); err != nil {
-			d.logger().Warn("slot not aired", "segment", slot.Segment, "error", err)
+		for i, slot := range slots {
+			// an extra and the clock slot of the same minute: space them like items
+			if i > 0 {
+				if err := d.sleep(ctx, d.Spacing); err != nil {
+					return
+				}
+			}
+			if _, err := d.Air(ctx, slot.Segment, slot.Params, now); err != nil {
+				d.logger().Warn("slot not aired", "segment", slot.Segment, "error", err)
+			}
 		}
 	}
 	if async {
@@ -137,6 +150,31 @@ func (d *Director) Tick(ctx context.Context, now time.Time, async bool) {
 		return
 	}
 	run()
+}
+
+// showChange logs when the programme moves to another show.
+func (d *Director) showChange(s *schedule.Schedule, now time.Time) {
+	name := ""
+	show, ok := s.ShowAt(now)
+	if ok {
+		name = show.Show
+	}
+	d.mu.Lock()
+	changed := name != d.lastShow
+	d.lastShow = name
+	d.mu.Unlock()
+	if !changed {
+		return
+	}
+	if ok {
+		clock := show.Clock
+		if clock == "" {
+			clock = "default"
+		}
+		d.logger().Info("show on air", "show", show.Show, "window", show.Window, "clock", clock, "extras", len(show.Extra))
+	} else {
+		d.logger().Info("no show on air, default clock")
+	}
 }
 
 // Air builds a segment now and pitches its items. It returns how many items

@@ -26,7 +26,8 @@ on a free panel. Concept: stuttgart-things/homerun-library#146.
 - `main.go`: `serve` (default), `once <segment> [k=v] [-dry-run]`,
   `validate`, `version`; wiring in `newStation`
 - `internal/config`: env → `Config`, all errors at once
-- `internal/schedule`: `schedule.yaml` (`clock`, `programme`), `Due`,
+- `internal/schedule`: `schedule.yaml` (`clock`, named `clocks`, `programme`
+  with shows and extras), `Due` (extras, then the show's clock slot),
   `ShowAt`, `Watcher` (reload on change, keeps the last good version)
 - `internal/director`: minute ticker, once per minute, skips a slot while
   the previous one is on air, spaces the items of a slot, builds the

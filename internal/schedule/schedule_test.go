@@ -49,7 +49,7 @@ func TestParseDraft(t *testing.T) {
 	if night.Show != "night" || night.Brightness == nil || *night.Brightness != 20 {
 		t.Fatalf("night = %+v", night)
 	}
-	if got := strings.Join(p.Programme[0].Extra, ","); got != "weather,calendar" {
+	if got := extraNames(p.Programme[0].Extra); got != "weather,calendar" {
 		t.Fatalf("extra = %q", got)
 	}
 }
@@ -124,15 +124,8 @@ func TestDue(t *testing.T) {
 	}
 	for _, c := range cases {
 		at := time.Date(2026, 11, 17, c.hh, c.mm, 30, 0, loc)
-		s, ok := p.Due(at)
-		if c.segment == "" {
-			if ok {
-				t.Errorf("%02d:%02d: unexpected slot %q", c.hh, c.mm, s.Segment)
-			}
-			continue
-		}
-		if !ok || s.Segment != c.segment {
-			t.Errorf("%02d:%02d: got %q (%v), want %q", c.hh, c.mm, s.Segment, ok, c.segment)
+		if got := segments(p.Due(at)); got != c.segment {
+			t.Errorf("%02d:%02d: got %q, want %q", c.hh, c.mm, got, c.segment)
 		}
 	}
 }
@@ -168,7 +161,8 @@ func TestUnknown(t *testing.T) {
 	}
 	known := map[string]bool{"time-check": true, "news": true, "infra-facts": true}
 	got := p.Unknown(func(s string) bool { return known[s] })
-	if len(got) != 1 || got[0] != ":35 tabletennis-stats" {
+	want := ":35 tabletennis-stats|07:00-10:00 extra weather|07:00-10:00 extra calendar|17:00-19:00 extra daily-summary"
+	if strings.Join(got, "|") != want {
 		t.Fatalf("unknown = %v", got)
 	}
 }
@@ -199,6 +193,101 @@ func TestExampleFile(t *testing.T) {
 			t.Fatalf("%s: %v", path, err)
 		}
 	}
+}
+
+const shows = `
+clock:
+  ":00": { segment: time-check }
+  ":15": { segment: infra-facts }
+clocks:
+  morning:
+    ":00": { segment: time-check }
+    ":05": { segment: news, count: 3 }
+    ":30": { segment: news }
+  night: {}
+programme:
+  "07:00-10:00": { show: morning-show, clock: morning, extra: [weather] }
+  "10:00-17:00": { show: daytime }
+  "17:00-19:00":
+    show: after-work
+    extra:
+      - { segment: daily-summary, at: "17:30", count: 1 }
+  "22:00-06:00": { show: night, clock: night }
+`
+
+func TestDueWithShows(t *testing.T) {
+	p, err := Parse(strings.NewReader(shows))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for at, want := range map[string]string{
+		"07:00": "weather,time-check", // extra at window start, then the show's clock
+		"07:05": "news",               // morning clock
+		"08:15": "",                   // not in the morning clock
+		"12:15": "infra-facts",        // daytime: default clock
+		"17:00": "time-check",         // extra has its own time
+		"17:30": "daily-summary",      // ... here, the default clock has no :30
+		"18:30": "",                   // once per window
+		"23:00": "",                   // night: empty clock, silence
+		"03:15": "",                   // night crosses midnight
+		"06:15": "infra-facts",        // between shows: default clock
+		"20:00": "time-check",         // between shows
+	} {
+		tm, _ := time.Parse("15:04", at)
+		if got := segments(p.Due(tm)); got != want {
+			t.Errorf("%s: got %q, want %q", at, got, want)
+		}
+	}
+	e := p.Programme[2].Extra[0]
+	if !e.HasAt || e.At.String() != "17:30" || e.Params.Int("count", 0) != 1 || e.Params["at"] != nil {
+		t.Fatalf("extra = %+v", e)
+	}
+}
+
+func TestProgrammeErrors(t *testing.T) {
+	_, err := Parse(strings.NewReader(`
+clock:
+  ":00": { segment: time-check }
+clocks:
+  morning:
+    ":61": { segment: news }
+programme:
+  "07:00-10:00": { show: a, clock: missing }
+  "09:00-11:00": { show: b, extra: [{ segment: x, at: "12:00" }] }
+  "12:00-13:00": { show: c, extra: [{ segment: y, at: "noon" }] }
+  "14:00-15:00": { show: d, extra: [{ count: 2 }] }
+`))
+	if err == nil {
+		t.Fatal("bad programme accepted")
+	}
+	for _, want := range []string{
+		`clocks "morning" ":61"`,
+		`clock "missing" is not in clocks`,
+		`"09:00-11:00" overlaps "07:00-10:00" at 09:00`,
+		`extra x at 12:00 is outside the window`,
+		`at "noon"`,
+		`extra without segment`,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error lacks %q:\n%v", want, err)
+		}
+	}
+}
+
+func segments(slots []Slot) string {
+	names := make([]string, len(slots))
+	for i, s := range slots {
+		names[i] = s.Segment
+	}
+	return strings.Join(names, ",")
+}
+
+func extraNames(es []Extra) string {
+	names := make([]string, len(es))
+	for i, e := range es {
+		names[i] = e.Segment
+	}
+	return strings.Join(names, ",")
 }
 
 func equalInts(a, b []int) bool {

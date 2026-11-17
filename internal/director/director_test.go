@@ -217,3 +217,45 @@ func errText(err error) string {
 	}
 	return err.Error()
 }
+
+const showPlan = `
+clock:
+  ":00": { segment: time-check }
+clocks:
+  night: {}
+programme:
+  "07:00-10:00": { show: morning-show, extra: [news, unknown-extra] }
+  "22:00-06:00": { show: night, clock: night }
+`
+
+func TestTickAirsExtraThenClock(t *testing.T) {
+	news := &countSeg{name: "news", n: 2}
+	tc := &countSeg{name: "time-check", n: 1}
+	d, rec, slept := setup(t, showPlan, news, tc)
+
+	// 06:00 UTC = 07:00 in Berlin: the morning show starts, extra first
+	d.Tick(context.Background(), time.Date(2026, 11, 17, 6, 0, 0, 0, time.UTC), false)
+	var tags []string
+	for _, m := range rec.msgs {
+		tags = append(tags, m.Tags)
+	}
+	if got := strings.Join(tags, ","); got != "segment=news,segment=news,segment=time-check" {
+		t.Fatalf("aired %s", got)
+	}
+	// news items spaced, then a pause before the clock slot
+	if len(*slept) != 2 {
+		t.Fatalf("spacing = %v", *slept)
+	}
+
+	// 08:00 Berlin: the extra was once per window
+	d.Tick(context.Background(), time.Date(2026, 11, 17, 7, 0, 0, 0, time.UTC), false)
+	if news.calls != 1 || tc.calls != 2 {
+		t.Fatalf("calls news=%d time-check=%d", news.calls, tc.calls)
+	}
+
+	// 23:00 Berlin: night, empty clock
+	d.Tick(context.Background(), time.Date(2026, 11, 17, 22, 0, 0, 0, time.UTC), false)
+	if tc.calls != 2 {
+		t.Fatalf("night aired time-check")
+	}
+}

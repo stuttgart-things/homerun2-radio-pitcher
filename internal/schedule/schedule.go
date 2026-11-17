@@ -1,7 +1,7 @@
-// Package schedule reads the radio schedule (schedule.yaml): a format clock
-// that maps a minute of the hour to a segment, and a day programme of time
-// windows. The MVP airs the clock only; the programme is parsed and
-// validated so its format is fixed before it is used.
+// Package schedule reads the radio schedule (schedule.yaml): format clocks
+// that map a minute of the hour to a segment, and a day programme of time
+// windows (shows). A show airs a named clock instead of the default one, and
+// its extras once per window.
 package schedule
 
 import (
@@ -21,14 +21,23 @@ import (
 // Schedule is the parsed schedule.yaml.
 type Schedule struct {
 	// Clock maps a minute of the hour (0-59) to the slot aired then. It
-	// repeats every hour.
+	// repeats every hour. It is the default clock: it airs outside of every
+	// show and in shows without their own clock.
 	Clock map[int]Slot
 	// Default is the `default` entry of the clock: what runs between slots.
 	// The idle screen belongs to the catcher, so the pitcher does not air
 	// it; it is kept so the file can say what the panel shows.
 	Default *Slot
+	// Clocks are the named clocks shows refer to. An empty one is silence.
+	Clocks map[string]Clock
 	// Programme is the list of time windows of the day, in file order.
 	Programme []Show
+}
+
+// Clock is a named format clock.
+type Clock struct {
+	Slots   map[int]Slot
+	Default *Slot
 }
 
 // Slot is one entry of the clock: a segment and its parameters.
@@ -42,10 +51,43 @@ type Show struct {
 	Window string
 	From   TimeOfDay
 	To     TimeOfDay
-	Show   string   `yaml:"show"`
-	Extra  []string `yaml:"extra"`
+	Show   string `yaml:"show"`
+	// Clock names the clock of Clocks the show airs; empty: the default clock.
+	Clock string `yaml:"clock"`
+	// Extra are segments aired once per window, at their own time.
+	Extra []Extra `yaml:"extra"`
 	// Brightness of the panel during the show in percent, nil when unset.
+	// Parsed, not aired: dimming is the catcher's (led-catcher issue).
 	Brightness *int `yaml:"brightness"`
+}
+
+// Extra is a segment a show airs once per window: `weather`, or
+// `{ segment: daily-summary, at: "17:30", count: 1 }`. Without `at` it airs
+// at the start of the window.
+type Extra struct {
+	Slot
+	At    TimeOfDay
+	HasAt bool
+}
+
+// UnmarshalYAML reads a segment name or a slot mapping with optional `at`.
+func (e *Extra) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode {
+		e.Segment = strings.TrimSpace(n.Value)
+		return nil
+	}
+	if err := e.Slot.UnmarshalYAML(n); err != nil {
+		return err
+	}
+	if v, ok := e.Params["at"]; ok {
+		delete(e.Params, "at")
+		at, err := parseTimeOfDay(fmt.Sprint(v))
+		if err != nil {
+			return fmt.Errorf("extra %s: at %q, want \"HH:MM\"", e.Segment, fmt.Sprint(v))
+		}
+		e.At, e.HasAt = at, true
+	}
+	return nil
 }
 
 // TimeOfDay is a time of day in minutes after midnight.
@@ -56,7 +98,10 @@ func (c TimeOfDay) String() string { return fmt.Sprintf("%02d:%02d", int(c)/60, 
 // Contains reports whether the time of day of t lies in the window. A window
 // whose end is before its start crosses midnight ("19:00-07:00").
 func (s Show) Contains(t time.Time) bool {
-	m := TimeOfDay(t.Hour()*60 + t.Minute())
+	return s.contains(TimeOfDay(t.Hour()*60 + t.Minute()))
+}
+
+func (s Show) contains(m TimeOfDay) bool {
 	if s.From <= s.To {
 		return m >= s.From && m < s.To
 	}
@@ -65,8 +110,9 @@ func (s Show) Contains(t time.Time) bool {
 
 // file is the YAML layout.
 type file struct {
-	Clock     map[string]Slot `yaml:"clock"`
-	Programme yaml.Node       `yaml:"programme"`
+	Clock     map[string]Slot            `yaml:"clock"`
+	Clocks    map[string]map[string]Slot `yaml:"clocks"`
+	Programme yaml.Node                  `yaml:"programme"`
 }
 
 // UnmarshalYAML reads `{ segment: news, count: 3 }`: `segment` names the
@@ -110,36 +156,19 @@ func Parse(r io.Reader) (*Schedule, error) {
 		return nil, fmt.Errorf("schedule: %w", err)
 	}
 
-	p := &Schedule{Clock: map[int]Slot{}}
+	p := &Schedule{Clocks: map[string]Clock{}}
 	var errs []error
 
 	if len(f.Clock) == 0 {
 		errs = append(errs, errors.New("clock: no slots"))
 	}
-	for key, slot := range f.Clock {
-		if slot.Segment == "" {
-			errs = append(errs, fmt.Errorf("clock %q: no segment", key))
-			continue
-		}
-		if key == "default" {
-			s := slot
-			p.Default = &s
-			continue
-		}
-		minute, err := parseMinute(key)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("clock %q: %w", key, err))
-			continue
-		}
-		if _, dup := p.Clock[minute]; dup {
-			errs = append(errs, fmt.Errorf("clock %q: minute %d given twice", key, minute))
-			continue
-		}
-		if err := slot.Params.validate(); err != nil {
-			errs = append(errs, fmt.Errorf("clock %q: %w", key, err))
-			continue
-		}
-		p.Clock[minute] = slot
+	def, cerrs := parseClock("clock", f.Clock)
+	errs = append(errs, cerrs...)
+	p.Clock, p.Default = def.Slots, def.Default
+	for name, slots := range f.Clocks {
+		c, cerrs := parseClock(fmt.Sprintf("clocks %q", name), slots)
+		errs = append(errs, cerrs...)
+		p.Clocks[name] = c
 	}
 
 	shows, err := parseProgramme(&f.Programme)
@@ -147,11 +176,78 @@ func Parse(r io.Reader) (*Schedule, error) {
 		errs = append(errs, err)
 	}
 	p.Programme = shows
+	errs = append(errs, p.checkProgramme()...)
 
 	if len(errs) > 0 {
 		return nil, errors.Join(errs...)
 	}
 	return p, nil
+}
+
+// parseClock reads the slots of one clock; where names it in errors.
+func parseClock(where string, slots map[string]Slot) (Clock, []error) {
+	c := Clock{Slots: map[int]Slot{}}
+	var errs []error
+	for key, slot := range slots {
+		if slot.Segment == "" {
+			errs = append(errs, fmt.Errorf("%s %q: no segment", where, key))
+			continue
+		}
+		if key == "default" {
+			s := slot
+			c.Default = &s
+			continue
+		}
+		minute, err := parseMinute(key)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s %q: %w", where, key, err))
+			continue
+		}
+		if _, dup := c.Slots[minute]; dup {
+			errs = append(errs, fmt.Errorf("%s %q: minute %d given twice", where, key, minute))
+			continue
+		}
+		if err := slot.Params.validate(); err != nil {
+			errs = append(errs, fmt.Errorf("%s %q: %w", where, key, err))
+			continue
+		}
+		c.Slots[minute] = slot
+	}
+	return c, errs
+}
+
+// checkProgramme checks what needs the whole schedule: clock references,
+// extras inside their window, and windows that do not overlap.
+func (p *Schedule) checkProgramme() []error {
+	var errs []error
+	var owner [24 * 60]string
+	for _, s := range p.Programme {
+		if s.Clock != "" {
+			if _, ok := p.Clocks[s.Clock]; !ok {
+				errs = append(errs, fmt.Errorf("programme %q: clock %q is not in clocks", s.Window, s.Clock))
+			}
+		}
+		for _, e := range s.Extra {
+			if e.Segment == "" {
+				errs = append(errs, fmt.Errorf("programme %q: extra without segment", s.Window))
+			} else if e.HasAt && !s.contains(e.At) {
+				errs = append(errs, fmt.Errorf("programme %q: extra %s at %s is outside the window", s.Window, e.Segment, e.At))
+			} else if err := e.Params.validate(); err != nil {
+				errs = append(errs, fmt.Errorf("programme %q: extra %s: %w", s.Window, e.Segment, err))
+			}
+		}
+		for m := TimeOfDay(0); m < 24*60; m++ {
+			if !s.contains(m) {
+				continue
+			}
+			if o := owner[m]; o != "" {
+				errs = append(errs, fmt.Errorf("programme %q overlaps %q at %s", s.Window, o, m))
+				break
+			}
+			owner[m] = s.Window
+		}
+	}
+	return errs
 }
 
 // parseMinute accepts ":05", "05" and "5".
@@ -223,11 +319,31 @@ func parseTimeOfDay(s string) (TimeOfDay, error) {
 	return TimeOfDay(t.Hour()*60 + t.Minute()), nil
 }
 
-// Due returns the slot aired at the minute of t, if there is one. t must
+// Due returns the slots aired at the minute of t, in order: the extras of
+// the show on air that are due now, then the slot of its clock. t must
 // already be in the station's time zone.
-func (p *Schedule) Due(t time.Time) (Slot, bool) {
-	s, ok := p.Clock[t.Minute()]
-	return s, ok
+func (p *Schedule) Due(t time.Time) []Slot {
+	var due []Slot
+	clock := p.Clock
+	if show, ok := p.ShowAt(t); ok {
+		m := TimeOfDay(t.Hour()*60 + t.Minute())
+		for _, e := range show.Extra {
+			at := show.From
+			if e.HasAt {
+				at = e.At
+			}
+			if at == m {
+				due = append(due, e.Slot)
+			}
+		}
+		if show.Clock != "" {
+			clock = p.Clocks[show.Clock].Slots
+		}
+	}
+	if s, ok := clock[t.Minute()]; ok {
+		due = append(due, s)
+	}
+	return due
 }
 
 // ShowAt returns the programme window t falls in, if any.
@@ -240,23 +356,46 @@ func (p *Schedule) ShowAt(t time.Time) (Show, bool) {
 	return Show{}, false
 }
 
-// Minutes returns the minutes of the clock in order.
-func (p *Schedule) Minutes() []int {
-	ms := make([]int, 0, len(p.Clock))
-	for m := range p.Clock {
+// Minutes returns the minutes of the default clock in order.
+func (p *Schedule) Minutes() []int { return minutes(p.Clock) }
+
+func minutes(slots map[int]Slot) []int {
+	ms := make([]int, 0, len(slots))
+	for m := range slots {
 		ms = append(ms, m)
 	}
 	sort.Ints(ms)
 	return ms
 }
 
-// Unknown returns a line for every slot whose segment is not in known. The
-// director skips those slots; the caller decides whether that is fatal.
+// Unknown returns a line for every slot (clocks and extras) whose segment is
+// not in known. The director skips those slots; the caller decides whether
+// that is fatal.
 func (p *Schedule) Unknown(known func(string) bool) []string {
 	var out []string
 	for _, m := range p.Minutes() {
 		if s := p.Clock[m]; !known(s.Segment) {
 			out = append(out, fmt.Sprintf(":%02d %s", m, s.Segment))
+		}
+	}
+	names := make([]string, 0, len(p.Clocks))
+	for n := range p.Clocks {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		c := p.Clocks[n]
+		for _, m := range minutes(c.Slots) {
+			if s := c.Slots[m]; !known(s.Segment) {
+				out = append(out, fmt.Sprintf("%s :%02d %s", n, m, s.Segment))
+			}
+		}
+	}
+	for _, s := range p.Programme {
+		for _, e := range s.Extra {
+			if !known(e.Segment) {
+				out = append(out, fmt.Sprintf("%s extra %s", s.Window, e.Segment))
+			}
 		}
 	}
 	return out
