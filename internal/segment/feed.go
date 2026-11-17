@@ -1,0 +1,175 @@
+package segment
+
+import (
+	"context"
+	"encoding/xml"
+	"fmt"
+	"html"
+	"io"
+	"net/http"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/panel"
+)
+
+// Feed is a configured news feed.
+type Feed struct {
+	Name string
+	URL  string
+}
+
+// ParseFeeds reads "name=url,name=url". An entry without a name is named
+// after its host.
+func ParseFeeds(s string) ([]Feed, error) {
+	var out []Feed
+	for _, e := range strings.Split(s, ",") {
+		e = strings.TrimSpace(e)
+		if e == "" {
+			continue
+		}
+		name, url, ok := strings.Cut(e, "=")
+		if !ok {
+			url, name = e, ""
+		}
+		name, url = strings.TrimSpace(name), strings.TrimSpace(url)
+		if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+			return nil, fmt.Errorf("feed %q: url must start with http:// or https://", e)
+		}
+		if name == "" {
+			name = strings.SplitN(strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "http://"), "/", 2)[0]
+		}
+		out = append(out, Feed{Name: name, URL: url})
+	}
+	return out, nil
+}
+
+// Headline is one entry of a feed.
+type Headline struct {
+	Feed      string
+	ID        string // guid, id or link
+	Title     string
+	Published time.Time // zero when the feed gives none
+}
+
+// rss and atom cover RSS 2.0 (and 0.9x) and Atom 1.0.
+type rss struct {
+	Items []struct {
+		Title   string `xml:"title"`
+		Link    string `xml:"link"`
+		GUID    string `xml:"guid"`
+		PubDate string `xml:"pubDate"`
+		Date    string `xml:"http://purl.org/dc/elements/1.1/ date"`
+	} `xml:"channel>item"`
+}
+
+type atom struct {
+	Entries []struct {
+		Title string `xml:"title"`
+		ID    string `xml:"id"`
+		Links []struct {
+			Href string `xml:"href,attr"`
+		} `xml:"link"`
+		Updated   string `xml:"updated"`
+		Published string `xml:"published"`
+	} `xml:"entry"`
+}
+
+// ParseFeed reads an RSS or Atom document.
+func ParseFeed(feed string, r io.Reader) ([]Headline, error) {
+	data, err := io.ReadAll(io.LimitReader(r, 8<<20))
+	if err != nil {
+		return nil, err
+	}
+	var root struct{ XMLName xml.Name }
+	if err := xml.Unmarshal(data, &root); err != nil {
+		return nil, fmt.Errorf("feed %s: %w", feed, err)
+	}
+	var out []Headline
+	switch strings.ToLower(root.XMLName.Local) {
+	case "rss", "rdf":
+		var doc rss
+		if err := xml.Unmarshal(data, &doc); err != nil {
+			return nil, fmt.Errorf("feed %s: %w", feed, err)
+		}
+		for _, it := range doc.Items {
+			id := firstNonEmpty(it.GUID, it.Link, it.Title)
+			out = append(out, Headline{Feed: feed, ID: id, Title: cleanTitle(it.Title), Published: parseDate(firstNonEmpty(it.PubDate, it.Date))})
+		}
+	case "feed":
+		var doc atom
+		if err := xml.Unmarshal(data, &doc); err != nil {
+			return nil, fmt.Errorf("feed %s: %w", feed, err)
+		}
+		for _, e := range doc.Entries {
+			link := ""
+			if len(e.Links) > 0 {
+				link = e.Links[0].Href
+			}
+			out = append(out, Headline{Feed: feed, ID: firstNonEmpty(e.ID, link, e.Title), Title: cleanTitle(e.Title), Published: parseDate(firstNonEmpty(e.Published, e.Updated))})
+		}
+	default:
+		return nil, fmt.Errorf("feed %s: neither RSS nor Atom (root element %q)", feed, root.XMLName.Local)
+	}
+	// drop entries without a title
+	kept := out[:0]
+	for _, h := range out {
+		if h.Title != "" {
+			kept = append(kept, h)
+		}
+	}
+	return kept, nil
+}
+
+// FetchFeed downloads and parses a feed.
+func FetchFeed(ctx context.Context, hc *http.Client, f Feed) ([]Headline, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.URL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "homerun2-radio-pitcher")
+	req.Header.Set("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml")
+	resp, err := hc.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("feed %s: %w", f.Name, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("feed %s: %s", f.Name, resp.Status)
+	}
+	return ParseFeed(f.Name, resp.Body)
+}
+
+var tagRE = regexp.MustCompile(`<[^>]*>`)
+
+// cleanTitle removes markup a feed may put into titles.
+func cleanTitle(s string) string {
+	s = tagRE.ReplaceAllString(s, "")
+	return panel.Clean(html.UnescapeString(s))
+}
+
+var dateLayouts = []string{
+	time.RFC1123Z, time.RFC1123, time.RFC3339, time.RFC3339Nano,
+	"Mon, 2 Jan 2006 15:04:05 -0700", "Mon, 2 Jan 2006 15:04:05 MST",
+	"2 Jan 2006 15:04:05 -0700", "2006-01-02T15:04:05Z0700", "2006-01-02",
+}
+
+func parseDate(s string) time.Time {
+	s = strings.TrimSpace(s)
+	for _, l := range dateLayouts {
+		if t, err := time.Parse(l, s); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
+func firstNonEmpty(ss ...string) string {
+	for _, s := range ss {
+		if s = strings.TrimSpace(s); s != "" {
+			return s
+		}
+	}
+	return ""
+}

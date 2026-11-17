@@ -1,0 +1,29 @@
+---
+name: Release
+on:
+  workflow_run:
+    workflows: ["Build, Push & Scan Container Image"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    uses: stuttgart-things/github-workflow-templates/.github/workflows/call-go-release.yaml@main
+    with:
+      runs-on: ubuntu-latest
+      go-version: "1.26.11"
+      stage-image: true
+      # Moves :latest onto every release.
+      image-extra-tags: latest
+      push-kustomize: true
+      kcl-source-dir: kcl
+      kcl-profile-file: tests/kcl-deploy-profile.yaml
+      # Substitutes the released version into config.image so the published
+      # kustomize base pins a real tag.
+      kustomize-image-key: config.image
+      kustomize-oci-repo: ghcr.io/stuttgart-things/homerun2-radio-pitcher-kustomize
+    secrets: inherit # pragma: allowlist secret
