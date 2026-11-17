@@ -20,6 +20,8 @@ _opts = {
     sourcesYaml = option("config.sourcesYaml")
     kubeconfigSecret = option("config.kubeconfigSecret")
     timezone = option("config.timezone")
+    basePath = option("config.basePath")
+    uiEnabled = option("config.uiEnabled")
     newsFeeds = option("config.newsFeeds")
     llmEnabled = option("config.llmEnabled")
     ollamaUrl = option("config.ollamaUrl")
@@ -67,6 +69,10 @@ config: schema.RadioPitcher = schema.RadioPitcher {
         kubeconfigSecret = _opts.kubeconfigSecret
     if _opts.timezone:
         timezone = _opts.timezone
+    if _opts.basePath:
+        basePath = _opts.basePath
+    if _opts.uiEnabled != None:
+        uiEnabled = _true(_opts.uiEnabled)
     if _opts.newsFeeds:
         newsFeeds = _opts.newsFeeds
     if _opts.llmEnabled:

@@ -107,7 +107,9 @@ func (n *News) Build(ctx context.Context, now time.Time, p schedule.Params) ([]I
 		if _, ok := n.seen[key]; ok {
 			continue
 		}
-		n.seen[key] = now
+		if !IsPreview(ctx) {
+			n.seen[key] = now
+		}
 		items = append(items, Item{
 			Title:   n.Moderator.Headline(ctx, h.Title, n.Title),
 			Message: panel.Truncate(h.Feed+": "+h.Title, n.MessageMax),

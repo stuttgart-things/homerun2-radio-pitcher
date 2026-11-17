@@ -1,0 +1,164 @@
+{{define "index"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOMERUN² Radio</title>
+<script>
+  // In homerun2-portal's iframe the portal shows the brand and the service
+  // name: hr-embedded switches to the compact header before the first paint.
+  if (window.self !== window.top) document.documentElement.classList.add('hr-embedded');
+</script>
+<script src="{{.Base}}/static/htmx.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  /* Copy of homerun2-portal's static/homerun2-tokens.css for running without
+     the portal; behind it the portal's file (linked below) wins. */
+  :where(:root) {
+    --hr-bg: #0b1120; --hr-surface: #111827; --hr-card: #1e293b;
+    --hr-border: #334155; --hr-text: #e2e8f0; --hr-muted: #94a3b8;
+    --hr-accent: #6366f1; --hr-accent-2: #a855f7; --hr-accent-3: #f97316;
+    --hr-ok: #22c55e; --hr-info: #38bdf8; --hr-warning: #eab308; --hr-error: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--hr-bg); color: var(--hr-text); font: 14px/1.45 system-ui, sans-serif; }
+  a { color: var(--hr-accent); }
+  .header-bar { background: linear-gradient(135deg, var(--hr-accent) 0%, var(--hr-accent-2) 100%); color: #f8fafc; padding: 1.4rem 1.5rem; border-bottom: 3px solid var(--hr-accent-3); display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+  .header-bar h1 { margin: 0; font-family: 'Press Start 2P', monospace; font-size: 1.8rem; text-shadow: 3px 3px 0 rgba(0,0,0,.3); }
+  .header-bar .subtitle { font-family: 'Press Start 2P', monospace; font-size: .65rem; color: #fbbf24; margin-top: .5rem; letter-spacing: .12em; text-transform: uppercase; }
+  .header-bar .meta { font-size: 12px; opacity: .85; }
+  .hr-embedded .header-bar { background: var(--hr-surface); border-bottom: 1px solid var(--hr-border); padding: 6px 16px; min-height: 44px; align-items: center; }
+  .hr-embedded .header-bar h1 { display: none; }
+  .hr-embedded .header-bar .subtitle { font-family: inherit; font-size: 13px; color: var(--hr-muted); margin: 0; letter-spacing: normal; text-transform: none; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  @media (max-width: 800px) { main { grid-template-columns: minmax(0, 1fr); } }
+  section { background: var(--hr-card); border: 1px solid var(--hr-border); border-radius: 8px; padding: 14px 16px; min-width: 0; }
+  section.wide { grid-column: 1 / -1; }
+  h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--hr-muted); }
+  .muted { color: var(--hr-muted); }
+  .warn { color: var(--hr-warning); }
+  .err { color: var(--hr-error); }
+  .ok { color: var(--hr-ok); }
+  .big { font-size: 20px; font-weight: 600; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: baseline; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--hr-surface); border: 1px solid var(--hr-border); font-size: 12px; }
+  .pill.live { border-color: var(--hr-error); color: var(--hr-error); }
+  /* day timeline */
+  .timeline { position: relative; height: 34px; background: var(--hr-surface); border-radius: 6px; margin: 8px 0 4px; overflow: hidden; }
+  .bar { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--hr-accent) 35%, transparent); border-right: 1px solid var(--hr-bg); font-size: 11px; padding: 2px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar.current { background: color-mix(in srgb, var(--hr-accent-2) 60%, transparent); }
+  .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--hr-accent-3); }
+  .hours { display: flex; justify-content: space-between; font-size: 11px; color: var(--hr-muted); }
+  /* hour clock */
+  .hourbar { position: relative; height: 10px; background: var(--hr-surface); border-radius: 5px; margin: 10px 0; }
+  .tick { position: absolute; top: -2px; width: 4px; height: 14px; border-radius: 2px; background: var(--hr-accent); }
+  .tick.unknown { background: var(--hr-muted); }
+  .tick.next { background: var(--hr-accent-3); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td, th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--hr-border); vertical-align: top; }
+  th { color: var(--hr-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+  tr.past td { color: var(--hr-muted); }
+  tr.next td { color: var(--hr-accent-3); font-weight: 600; }
+  td.msg { word-break: break-word; }
+  td.nowrap { white-space: nowrap; }
+  /* preview */
+  form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  select, input, button { font: inherit; color: var(--hr-text); background: var(--hr-surface); border: 1px solid var(--hr-border); border-radius: 6px; padding: 6px 8px; }
+  input { flex: 1; min-width: 160px; }
+  button { background: var(--hr-accent); border-color: var(--hr-accent); color: #fff; cursor: pointer; }
+  .htmx-request button { opacity: .6; }
+  .cards { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+  .card { width: 220px; background: #000; border: 1px solid var(--hr-border); border-radius: 6px; padding: 8px; font-family: ui-monospace, monospace; }
+  .card .title { color: #fbbf24; white-space: pre; font-size: 12px; line-height: 1.3; min-height: 4.2em; }
+  .card .title.overflow { color: var(--hr-error); }
+  .card .scroll { color: var(--hr-info); font-size: 12px; margin-top: 6px; border-top: 1px dashed var(--hr-border); padding-top: 4px; word-break: break-word; }
+</style>
+{{if .PortalTheme}}<link rel="stylesheet" href="/static/homerun2-tokens.css">{{end}}
+</head>
+<body>
+<header class="header-bar">
+  <div><h1>HOMERUN² RADIO</h1><div class="subtitle">programme of the LED matrix</div></div>
+  <div class="meta">{{.Zone}} · {{.Version}}</div>
+</header>
+<main>
+  <section class="wide" hx-get="{{.Base}}/ui/part/now" hx-trigger="every 15s" hx-swap="innerHTML">{{template "now" .}}</section>
+  <section hx-get="{{.Base}}/ui/part/aired" hx-trigger="every 15s" hx-swap="innerHTML">{{template "aired" .}}</section>
+  <section hx-get="{{.Base}}/ui/part/sources" hx-trigger="every 30s" hx-swap="innerHTML">{{template "sources" .}}</section>
+  <section class="wide">
+    <h2>Preview</h2>
+    <p class="muted">Builds a segment now, as the next slot would air it, without pitching it. Headlines are not marked as seen, facts not as recent. Queries the feeds, sources and, if on, the model.</p>
+    <form hx-post="{{.Base}}/ui/preview" hx-target="#preview" hx-swap="innerHTML">
+      <select name="segment">{{range .Segments}}<option>{{.}}</option>{{end}}</select>
+      <input name="params" placeholder="count=2 feeds=cncf" autocomplete="off">
+      <button type="submit">Preview</button>
+    </form>
+    <div id="preview"></div>
+  </section>
+</main>
+</body>
+</html>{{end}}
+
+{{define "now"}}
+<h2>On air</h2>
+{{if .Err}}<p class="warn">Schedule not reloaded, the last good version is on air: {{.Err}}</p>{{end}}
+<div class="row">
+  <span class="big">{{if .Show}}{{.Show.Name}}{{else}}no show{{end}}</span>
+  <span class="muted">{{if .Show}}{{.Show.Window}} · {{end}}clock <b>{{.Clock}}</b> · {{.Now.Format "15:04"}}</span>
+  {{if .OnAir}}<span class="pill live">● on air</span>{{end}}
+  {{with .Next}}<span>next: <b>{{.Segments}}</b> at {{.At}} <span class="muted">({{.In}})</span></span>{{else}}<span class="muted">nothing airs within a day</span>{{end}}
+</div>
+<div class="timeline" title="today">
+  {{range .Timeline}}<div class="bar{{if .Current}} current{{end}}" style="left:{{.Left}}%;width:{{.Width}}%" title="{{.Window}} {{.Name}} (clock {{.Clock}})">{{.Name}}</div>{{end}}
+  <div class="nowline" style="left:{{.NowPct}}%"></div>
+</div>
+<div class="hours"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+{{if .Extras}}<p>Extras of this show:
+  {{range .Extras}}<span class="pill{{if .Unknown}} muted{{end}}" title="{{if .Unknown}}segment does not exist yet, skipped{{else if .Done}}aired or skipped this window{{else}}pending{{end}}">{{.At}} {{.Segment}}{{if .Done}} ✓{{end}}</span> {{end}}
+</p>{{end}}
+<h2 style="margin-top:14px">Clock {{.Clock}}</h2>
+{{if .Slots}}
+<div class="hourbar">{{range .Slots}}<div class="tick{{if .Unknown}} unknown{{end}}{{if .Next}} next{{end}}" style="left:{{.Pct}}%" title="{{.Minute}} {{.Segment}}"></div>{{end}}</div>
+<table>
+  <tr><th>min</th><th>segment</th><th>parameters</th></tr>
+  {{range .Slots}}<tr class="{{if .Next}}next{{else if .Past}}past{{end}}"><td>{{.Minute}}</td><td>{{.Segment}}{{if .Unknown}} <span class="muted">(not built yet, skipped)</span>{{end}}</td><td class="muted">{{.Params}}</td></tr>{{end}}
+</table>
+{{else}}<p class="muted">Empty clock: silence, the panel keeps the catcher's idle screen.</p>{{end}}
+{{end}}
+
+{{define "aired"}}
+<h2>Last aired</h2>
+{{if .Aired}}<table>
+  <tr><th>time</th><th>segment</th><th>card</th></tr>
+  {{range .Aired}}<tr><td>{{.At.Format "15:04:05"}}</td><td>{{.Segment}}</td><td class="msg"><b>{{.Title}}</b><br><span class="muted">{{.Message}}</span>{{if .Err}}<br><span class="err">{{.Err}}</span>{{end}}</td></tr>{{end}}
+</table>{{else}}<p class="muted">Nothing aired since the start.</p>{{end}}
+{{end}}
+
+{{define "sources"}}
+<h2>Sources</h2>
+{{if .Sources}}<table>
+  <tr><th>source</th><th>last query</th><th>result</th></tr>
+  {{range .Sources}}<tr><td class="nowrap">{{.Name}}</td>
+    <td>{{if .At.IsZero}}<span class="muted">not yet</span>{{else}}{{.At.Format "15:04:05"}} <span class="muted">{{.Took}}</span>{{end}}</td>
+    <td class="msg">{{if .Err}}<span class="err">{{.Err}}</span>{{else if .At.IsZero}}<span class="muted">queried when infra-facts airs</span>{{else}}<span class="ok">{{.Facts}} facts</span>{{end}}</td></tr>{{end}}
+</table>{{else}}<p class="muted">No sources configured (RADIO_SOURCES_PATH).</p>{{end}}
+{{end}}
+
+{{define "preview"}}
+{{if .Err}}<p class="err">{{.Segment}}: {{.Err}}</p>{{end}}
+{{if .Cards}}<p class="muted">{{.Segment}} {{.Params}} · {{len .Cards}} card(s) · {{.Took}}</p>
+<div class="cards">{{range .Cards}}<div class="card">
+  <div class="title{{if not .Fits}} overflow{{end}}">{{join .Lines "\n"}}</div>
+  <div class="scroll" title="scrolling line">{{.Message}}</div>
+</div>{{end}}</div>
+{{else if not .Err}}<p class="muted">{{.Segment}} has nothing to say right now.</p>{{end}}
+{{end}}
+
+{{define "fragment-on-air"}}<div class="hr-frag"><ul class="hr-list">
+<li class="hr-item"><span class="hr-time">{{.Now.Format "15:04"}}</span><span class="hr-system">show</span><span class="hr-title">{{if .Show}}{{.Show.Name}} ({{.Show.Window}}){{else}}no show{{end}} · clock {{.Clock}}</span></li>
+{{with .Next}}<li class="hr-item"><span class="hr-time">{{.At}}</span><span class="hr-system">next</span><span class="hr-title">{{.Segments}} <span class="hr-muted">{{.In}}</span></span></li>{{end}}
+{{range $i, $a := .Aired}}{{if eq $i 0}}<li class="hr-item"><span class="hr-time">{{$a.At.Format "15:04"}}</span><span class="hr-system">{{$a.Segment}}</span><span class="hr-title">{{$a.Title}}</span></li>{{end}}{{end}}
+</ul><a class="hr-frag-more" href="{{.Base}}/">Open programme →</a></div>{{end}}
+
+{{define "fragment-last-aired"}}<div class="hr-frag"><ul class="hr-list">
+{{range $i, $a := .Aired}}{{if lt $i 6}}<li class="hr-item"><span class="hr-time">{{$a.At.Format "15:04"}}</span><span class="hr-system">{{$a.Segment}}</span><span class="hr-title">{{$a.Title}}</span></li>{{end}}{{else}}<li class="hr-item hr-muted">Nothing aired yet.</li>{{end}}
+</ul><a class="hr-frag-more" href="{{.Base}}/">Open programme →</a></div>{{end}}

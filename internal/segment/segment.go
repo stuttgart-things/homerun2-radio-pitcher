@@ -25,6 +25,21 @@ type Segment interface {
 	Build(ctx context.Context, now time.Time, p schedule.Params) ([]Item, error)
 }
 
+type previewKey struct{}
+
+// Preview marks ctx as a preview: the segment builds its items as if it
+// aired now, but keeps no state (no headline marked seen, no fact marked
+// recent), so the next real slot is not changed by looking at it.
+func Preview(ctx context.Context) context.Context {
+	return context.WithValue(ctx, previewKey{}, true)
+}
+
+// IsPreview reports whether ctx is a preview.
+func IsPreview(ctx context.Context) bool {
+	v, _ := ctx.Value(previewKey{}).(bool)
+	return v
+}
+
 // Registry holds the segments by name.
 type Registry map[string]Segment
 

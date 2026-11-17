@@ -31,6 +31,19 @@ type Station struct {
 	Author   string // footer of the card
 }
 
+// Aired is one item the director pitched (or failed to), for the UI.
+type Aired struct {
+	At      time.Time
+	Segment string
+	Title   string
+	Message string
+	ID      string
+	Err     string
+}
+
+// recentMax is how many aired items Recent keeps.
+const recentMax = 30
+
 // Observer is told about every pitched item (metrics).
 type Observer func(segment string, err error)
 
@@ -54,6 +67,7 @@ type Director struct {
 	mu        sync.Mutex
 	lastSlot  string // minute already handled, "2006-01-02T15:04"
 	lastShow  string // show on air at the last tick, "" outside the programme
+	recent    []Aired
 	onAir     atomic.Bool
 	lastAired atomic.Pointer[time.Time]
 	wg        sync.WaitGroup
@@ -208,6 +222,7 @@ func (d *Director) Air(ctx context.Context, name string, params schedule.Params,
 		msg := d.Message(name, it, at)
 		id, err := d.Pitcher.Pitch(ctx, msg)
 		d.observe(name, err)
+		d.record(Aired{At: at, Segment: name, Title: msg.Title, Message: msg.Message, ID: id, Err: errText(err)})
 		if err != nil {
 			d.logger().Error("pitch failed", "segment", name, "title", msg.Title, "error", err)
 			continue
@@ -234,6 +249,36 @@ func (d *Director) Message(seg string, it segment.Item, at time.Time) homerun.Me
 		Timestamp: at.Format(time.RFC3339),
 		Tags:      "segment=" + seg,
 	}
+}
+
+func (d *Director) record(a Aired) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.recent = append(d.recent, a)
+	if len(d.recent) > recentMax {
+		d.recent = d.recent[len(d.recent)-recentMax:]
+	}
+}
+
+// Recent returns the last aired items, newest first, at most n.
+func (d *Director) Recent(n int) []Aired {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	out := make([]Aired, 0, min(n, len(d.recent)))
+	for i := len(d.recent) - 1; i >= 0 && len(out) < n; i-- {
+		out = append(out, d.recent[i])
+	}
+	return out
+}
+
+// OnAir reports whether a slot is being aired right now.
+func (d *Director) OnAir() bool { return d.onAir.Load() }
+
+func errText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 // LastAired is when the last item went out, zero if none yet.

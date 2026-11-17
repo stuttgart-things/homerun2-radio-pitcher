@@ -90,6 +90,24 @@ func Mux(b Build, s Status) *http.ServeMux {
 	return mux
 }
 
+// Mount serves app (the UI) under basePath next to the root routes of root
+// (/health, /ready, /metrics stay at the root, as the probes and the portal
+// expect). Without a base path app takes every other path.
+func Mount(basePath string, root *http.ServeMux, app http.Handler) http.Handler {
+	if app == nil {
+		return root
+	}
+	if basePath == "" {
+		root.Handle("/", app)
+		return root
+	}
+	toUI := http.RedirectHandler(basePath+"/", http.StatusTemporaryRedirect)
+	root.Handle(basePath+"/", http.StripPrefix(basePath, app))
+	root.Handle(basePath, toUI)
+	root.Handle("GET /{$}", toUI)
+	return root
+}
+
 func errString(err error, def string) string {
 	if err != nil {
 		return err.Error()

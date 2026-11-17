@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -28,6 +27,7 @@ import (
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/schedule"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/segment"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/sources"
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/ui"
 )
 
 var (
@@ -83,6 +83,8 @@ type station struct {
 	watcher  *schedule.Watcher
 	pitcher  pitcher.Pitcher
 	director *director.Director
+	segments segment.Registry
+	sources  []*sources.Tracked
 }
 
 func newStation(cfg *config.Config, dryRun bool) (*station, error) {
@@ -108,13 +110,19 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 	}
 
 	var srcs []sources.Source
+	var tracked []*sources.Tracked
 	if cfg.SourcesPath != "" {
 		cfgs, err := sources.LoadConfig(cfg.SourcesPath)
 		if err != nil {
 			return nil, fmt.Errorf("RADIO_SOURCES_PATH: %w", err)
 		}
 		var errs []error
-		srcs, errs = sources.Build(cfgs, cfg.SourceTimeout)
+		var built []sources.Source
+		built, errs = sources.Build(cfgs, cfg.SourceTimeout)
+		tracked = sources.Track(built)
+		for _, t := range tracked {
+			srcs = append(srcs, t)
+		}
 		for _, e := range errs {
 			log.Warn("source left out", "error", e)
 		}
@@ -165,7 +173,7 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 		Spacing:  cfg.Spacing,
 		Observe:  handlers.Observe,
 	}
-	return &station{cfg: cfg, watcher: w, pitcher: p, director: d}, nil
+	return &station{cfg: cfg, watcher: w, pitcher: p, director: d, segments: segs, sources: tracked}, nil
 }
 
 func serve() error {
@@ -184,13 +192,28 @@ func serve() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	root := handlers.Mux(handlers.Build{Version: version, Commit: commit, Date: date}, handlers.Status{
+		Ready:     st.pitcher.Ready,
+		Schedule:  st.watcher.Current,
+		LastAired: st.director.LastAired,
+	})
+	var app http.Handler
+	if cfg.UIEnabled {
+		app = (&ui.Server{
+			BasePath: cfg.BasePath,
+			Version:  version,
+			Location: cfg.Location,
+			Schedule: st.watcher.Current,
+			Director: st.director,
+			Segments: st.segments,
+			Sources:  st.sources,
+			Title:    cfg.Title,
+		}).Handler()
+		slog.Info("programme UI on", "path", cfg.BasePath+"/")
+	}
 	srv := &http.Server{
-		Addr: ":" + cfg.Port,
-		Handler: handlers.Mux(handlers.Build{Version: version, Commit: commit, Date: date}, handlers.Status{
-			Ready:     st.pitcher.Ready,
-			Schedule:  st.watcher.Current,
-			LastAired: st.director.LastAired,
-		}),
+		Addr:              ":" + cfg.Port,
+		Handler:           handlers.Mount(cfg.BasePath, root, app),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	errc := make(chan error, 1)
@@ -235,17 +258,9 @@ func once(args []string) error {
 	if len(rest) == 0 {
 		return errors.New("once: name a segment, e.g. once news count=2")
 	}
-	params := schedule.Params{}
-	for _, kv := range rest[1:] {
-		k, v, ok := strings.Cut(kv, "=")
-		if !ok {
-			return fmt.Errorf("once: parameter %q, want key=value", kv)
-		}
-		if n, err := strconv.Atoi(v); err == nil {
-			params[k] = n
-		} else {
-			params[k] = v
-		}
+	params, err := schedule.ParseParams(rest[1:])
+	if err != nil {
+		return fmt.Errorf("once: %w", err)
 	}
 
 	cfg, err := config.Load(os.Getenv)

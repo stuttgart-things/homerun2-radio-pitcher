@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"regexp"
+
 	homerun "github.com/stuttgart-things/homerun-library/v4"
 
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/moderation"
@@ -44,6 +46,12 @@ type Config struct {
 
 	SourceTimeout time.Duration
 	FactsRecent   int
+
+	// BasePath is the URL prefix of the UI (BASE_PATH), e.g. "/radio"
+	// behind homerun2-portal; "" serves it at the root.
+	BasePath string
+	// UIEnabled switches the read-only programme UI (RADIO_UI_ENABLED).
+	UIEnabled bool
 
 	LLMEnabled  bool
 	OllamaURL   string
@@ -88,6 +96,7 @@ func Load(getenv func(string) string) (*Config, error) {
 		SourceTimeout: e.duration("RADIO_SOURCE_TIMEOUT", 10*time.Second),
 		FactsRecent:   e.integer("RADIO_FACTS_RECENT", 4),
 
+		UIEnabled:   e.boolean("RADIO_UI_ENABLED", true),
 		LLMEnabled:  e.boolean("RADIO_LLM_ENABLED", false),
 		OllamaURL:   e.str("OLLAMA_URL", ""),
 		OllamaModel: e.str("OLLAMA_MODEL", ""),
@@ -95,6 +104,12 @@ func Load(getenv func(string) string) (*Config, error) {
 		LLMAPIKey:   e.str("LLM_API_KEY", ""),
 		LLMTimeout:  e.duration("OLLAMA_TIMEOUT", 20*time.Second),
 	}
+
+	bp, err := ParseBasePath(e.str("BASE_PATH", ""))
+	if err != nil {
+		e.errs = append(e.errs, err)
+	}
+	c.BasePath = bp
 
 	tz := e.str("RADIO_TIMEZONE", "Europe/Berlin")
 	loc, err := time.LoadLocation(tz)
@@ -197,4 +212,22 @@ func SetupLogging() {
 	}
 	slog.SetDefault(slog.New(h))
 	homerun.SetLogger(slog.Default())
+}
+
+var basePathSegment = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
+
+// ParseBasePath normalises BASE_PATH to "/a/b" ("" and "/" become ""). Only
+// plain path segments: the value is written into the page's HTML, and "." or
+// ".." would make the prefix ambiguous.
+func ParseBasePath(s string) (string, error) {
+	trimmed := strings.Trim(strings.TrimSpace(s), "/")
+	if trimmed == "" {
+		return "", nil
+	}
+	for _, seg := range strings.Split(trimmed, "/") {
+		if !basePathSegment.MatchString(seg) || seg == "." || seg == ".." {
+			return "", fmt.Errorf("BASE_PATH %q: segment %q, want letters, digits, ._~-", s, seg)
+		}
+	}
+	return "/" + trimmed, nil
 }

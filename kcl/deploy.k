@@ -36,7 +36,10 @@ _env = [
 ] if _hasRedisSecret else []) + [
     {name: "RADIO_SCHEDULE_PATH", value: "{}/schedule.yaml".format(_configDir)}
     {name: "RADIO_TIMEZONE", value: config.timezone}
+    {name: "RADIO_UI_ENABLED", value: "true" if config.uiEnabled else "false"}
 ] + ([
+    {name: "BASE_PATH", value: config.basePath}
+] if config.basePath else []) + ([
     {name: "RADIO_SOURCES_PATH", value: "{}/sources.yaml".format(_configDir)}
 ] if config.sourcesYaml else []) + ([
     {name: "RADIO_NEWS_FEEDS", value: config.newsFeeds}

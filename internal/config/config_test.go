@@ -44,13 +44,27 @@ func TestErrors(t *testing.T) {
 	_, err := Load(getenv(map[string]string{
 		"RADIO_TIMEZONE": "Mars/Base", "RADIO_ITEM_SPACING": "soon", "RADIO_TITLE_LINES": "x",
 		"RADIO_DRY_RUN": "maybe", "OLLAMA_API": "openrouter", "RADIO_LLM_ENABLED": "true",
+		"BASE_PATH": "/radio/../x",
 	}))
 	if err == nil {
 		t.Fatal("expected errors")
 	}
-	for _, want := range []string{"RADIO_TIMEZONE", "RADIO_ITEM_SPACING", "RADIO_TITLE_LINES", "RADIO_DRY_RUN", "OLLAMA_API", "OLLAMA_URL"} {
+	for _, want := range []string{"RADIO_TIMEZONE", "RADIO_ITEM_SPACING", "RADIO_TITLE_LINES", "RADIO_DRY_RUN", "OLLAMA_API", "OLLAMA_URL", "BASE_PATH"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error lacks %s: %v", want, err)
+		}
+	}
+}
+
+func TestParseBasePath(t *testing.T) {
+	for in, want := range map[string]string{"": "", "/": "", "radio": "/radio", "/radio/": "/radio", " /a/b ": "/a/b"} {
+		if got, err := ParseBasePath(in); err != nil || got != want {
+			t.Errorf("ParseBasePath(%q) = %q, %v; want %q", in, got, err, want)
+		}
+	}
+	for _, bad := range []string{"/a/../b", "/\"x", "/a b"} {
+		if _, err := ParseBasePath(bad); err == nil {
+			t.Errorf("ParseBasePath(%q) accepted", bad)
 		}
 	}
 }

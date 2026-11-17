@@ -37,6 +37,10 @@ schema RadioPitcher:
     kubeconfigSecret: str = ""
 
     timezone: str = "Europe/Berlin"
+    # Programme UI: BASE_PATH behind homerun2-portal (e.g. "/radio"); off
+    # with uiEnabled = False
+    basePath: str = ""
+    uiEnabled: bool = True
     # "name=url,name=url"
     newsFeeds: str = ""
 

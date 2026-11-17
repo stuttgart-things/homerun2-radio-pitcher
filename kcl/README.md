@@ -26,6 +26,8 @@ kcl run kcl -D config.scheduleYaml="$(cat examples/schedule.yaml)"
 | `config.kubeconfigSecret` | | existing Secret with kubeconfig files, mounted at `/etc/homerun2-radio-pitcher/kubeconfigs/` |
 | `config.inClusterReadAccess` | `false` | ClusterRole + binding: `list` on pods, nodes, namespaces, kustomizations, helmreleases, virtualmachines |
 | `config.timezone` | `Europe/Berlin` | |
+| `config.basePath` | | `BASE_PATH` of the programme UI, e.g. `/radio` behind homerun2-portal |
+| `config.uiEnabled` | `true` | read-only programme UI |
 | `config.newsFeeds` | | `name=url,name=url` |
 | `config.llmEnabled`, `config.ollamaUrl`, `config.ollamaModel`, `config.ollamaApi` | off, , , `openai` | |
 | `config.llmApiKeySecretName`, `config.llmApiKeySecretKey` | , `api-key` | existing Secret with an API key (e.g. OpenRouter), as `LLM_API_KEY`; required ref |

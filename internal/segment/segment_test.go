@@ -315,3 +315,25 @@ func TestRegistry(t *testing.T) {
 type answer string
 
 func (a answer) Complete(context.Context, string, string) (string, error) { return string(a), nil }
+
+func TestPreviewKeepsNoState(t *testing.T) {
+	n := newsSegment(map[string]string{"heise": rssDoc, "cncf": atomDoc})
+	ctx := Preview(context.Background())
+	if !IsPreview(ctx) || IsPreview(context.Background()) {
+		t.Fatal("IsPreview")
+	}
+	first, _ := n.Build(ctx, now, schedule.Params{"count": 2})
+	again, _ := n.Build(ctx, now, schedule.Params{"count": 2})
+	aired, _ := n.Build(context.Background(), now, schedule.Params{"count": 2})
+	if len(first) != 2 || first[0] != again[0] || first[0] != aired[0] {
+		t.Fatalf("preview changed what airs: %v / %v / %v", first, again, aired)
+	}
+
+	s := infraSegment(fakeSource{name: "x", facts: []sources.Fact{fact("a", "A", "a"), fact("b", "B", "b")}})
+	for range 5 {
+		_, _ = s.Build(ctx, now, schedule.Params{"count": 2})
+	}
+	if len(s.recent) != 0 {
+		t.Fatalf("preview remembered facts: %v", s.recent)
+	}
+}
