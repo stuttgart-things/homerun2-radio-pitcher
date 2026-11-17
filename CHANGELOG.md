@@ -1,3 +1,10 @@
+# [0.4.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.3.0...v0.4.0) (2026-11-17)
+
+
+### Features
+
+* air the programme (named clocks, extras, silent night) ([902c4bc](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/902c4bcb78b3c78830998a6755792ee303c7dc0b)), closes [#3](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/3) [#5](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/5)
+
 # [0.3.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.2.0...v0.3.0) (2026-11-17)
 
 
