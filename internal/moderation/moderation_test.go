@@ -110,6 +110,50 @@ func TestNumbersFrom(t *testing.T) {
 	}
 }
 
+func TestNumbersFromWords(t *testing.T) {
+	for _, tc := range []struct {
+		out, source string
+		ok          bool
+	}{
+		// #11: invented as words
+		{"Six of the sixty-four VMs are running.", "harvester: 6 VMs, 6 of them running", false},
+		{"Nine of nine Flux HelmReleases are ready.", "homerun2-dev: 9 of 9 Flux HelmReleases ready", false},
+		// #11: 41 used twice, 42 dropped
+		{"41 of 41 Flux Kustomizations are ready to go.", "homerun2-dev: 41 of 42 Flux Kustomizations ready, 1 not ready", false},
+		{"9 of 9 Flux HelmReleases are ready.", "homerun2-dev: 9 of 9 Flux HelmReleases ready", true},
+		{"Twenty new projects join the CNCF", "Twenty new projects join the CNCF sandbox", true},
+		{"Three new projects", "Two new projects join", false},
+		{"A dozen talks at KubeCon", "12 talks at KubeCon", false},
+		{"Vierundsechzig Pods laufen", "64 Pods laufen", false},
+		{"Zwölf Knoten bereit", "12 Knoten bereit", false},
+		{"Nacht der offenen Tür, Achtung", "Nacht der offenen Tür", true},
+		{"Someone done it often", "it", true},
+	} {
+		err := NumbersFrom(tc.out, tc.source)
+		if (err == nil) != tc.ok {
+			t.Errorf("NumbersFrom(%q, %q) = %v, want ok=%v", tc.out, tc.source, err, tc.ok)
+		}
+	}
+}
+
+func TestPhraseKeepsSourceName(t *testing.T) {
+	tmpl := "homerun2-dev: 41 of 42 Flux Kustomizations ready, 1 not ready"
+	m := &Moderator{Client: &fakeClient{answer: "41 of 42 Kustomizations are ready, 1 is not."}}
+	if got := m.Phrase(context.Background(), tmpl, 120, "homerun2-dev"); got != tmpl {
+		t.Fatalf("dropped source name not rejected: %q", got)
+	}
+	m = &Moderator{Client: &fakeClient{answer: "On Homerun2-Dev, 41 of 42 Kustomizations are ready, 1 is not."}}
+	if got := m.Phrase(context.Background(), tmpl, 120, "homerun2-dev"); got == tmpl {
+		t.Fatal("answer with source name rejected")
+	}
+	// a template without the name (e.g. a prometheus query text) does not need it
+	tmpl = "clusterscope: 4 warning findings in labul"
+	m = &Moderator{Client: &fakeClient{answer: "labul has 4 warning findings in clusterscope."}}
+	if got := m.Phrase(context.Background(), tmpl, 120, "homerun2-dev"); got == tmpl {
+		t.Fatal("name required although the template lacks it")
+	}
+}
+
 func TestOllamaOpenAI(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/chat/completions" {
