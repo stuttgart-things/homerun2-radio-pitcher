@@ -1,3 +1,10 @@
+# [0.6.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.5.0...v0.6.0) (2026-11-17)
+
+
+### Features
+
+* **ui:** session overrides behind RADIO_UI_TOKEN (pause, skip, clock, air now) ([971d3c1](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/971d3c17ebaa4f49361bad233c9a48598d260bd5)), closes [#24](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/24)
+
 # [0.5.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.4.0...v0.5.0) (2026-11-17)
 
 
