@@ -12,7 +12,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 )
 
 // Client completes one chat turn.
@@ -26,11 +25,13 @@ const (
 	APINative = "native" // POST /api/chat
 )
 
-// Ollama talks to a local Ollama server.
+// Ollama talks to a local Ollama server, or to any OpenAI-compatible
+// endpoint (e.g. OpenRouter at https://openrouter.ai/api) with APIKey.
 type Ollama struct {
 	URL         string // base URL, e.g. http://ollama.ollama.svc:11434
 	Model       string // e.g. llama3.2:3b
 	API         string // APIOpenAI (default) or APINative
+	APIKey      string // optional, sent as "Authorization: Bearer"
 	Temperature float64
 	HTTP        *http.Client
 }
@@ -78,10 +79,15 @@ func (o *Ollama) Complete(ctx context.Context, system, user string) (string, err
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if o.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+o.APIKey)
+	}
 
+	// No client timeout: the caller's context sets it (Moderator.Timeout,
+	// OLLAMA_TIMEOUT), so a slow remote model is not cut off at a fixed 30s.
 	hc := o.HTTP
 	if hc == nil {
-		hc = &http.Client{Timeout: 30 * time.Second}
+		hc = http.DefaultClient
 	}
 	resp, err := hc.Do(req)
 	if err != nil {

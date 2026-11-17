@@ -28,6 +28,7 @@ kcl run kcl -D config.scheduleYaml="$(cat examples/schedule.yaml)"
 | `config.timezone` | `Europe/Berlin` | |
 | `config.newsFeeds` | | `name=url,name=url` |
 | `config.llmEnabled`, `config.ollamaUrl`, `config.ollamaModel`, `config.ollamaApi` | off, , , `openai` | |
+| `config.llmApiKeySecretName`, `config.llmApiKeySecretKey` | , `api-key` | existing Secret with an API key (e.g. OpenRouter), as `LLM_API_KEY`; required ref |
 | `config.servicePort` | `80` | |
 | `config.extraEnvVars` | `{}` | any further `RADIO_*` variable |
 | `config.labels` | `{}` | |

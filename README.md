@@ -205,8 +205,20 @@ fixed text airs instead, when the answer:
 - times out or errors
 
 Only the first line of an answer counts; quotes and markdown are stripped.
-Use the local Ollama in the lab rather than OpenRouter. The shared free key
-runs into `429 free-models-per-day`.
+Use the local Ollama in the lab for the station. Where it is not reachable
+(e.g. testing from a laptop), any OpenAI-compatible endpoint works with a key,
+for example OpenRouter's free models:
+
+```bash
+RADIO_LLM_ENABLED=true \
+OLLAMA_URL=https://openrouter.ai/api \
+OLLAMA_MODEL=google/gemma-3-12b-it:free \
+LLM_API_KEY=sk-or-... \
+go run . once news -dry-run
+```
+
+The free tier is rate-limited (`429 free-models-per-day`); a rejected or
+failed call airs the fixed text.
 
 ## Configuration (environment)
 
@@ -235,6 +247,7 @@ runs into `429 free-models-per-day`.
 | `OLLAMA_URL` | | e.g. `http://ollama.ollama.svc.cluster.local:11434` |
 | `OLLAMA_MODEL` | | e.g. `llama3.2:3b` |
 | `OLLAMA_API` | `openai` | `openai` (`/v1/chat/completions`) or `native` (`/api/chat`) |
+| `LLM_API_KEY` | | optional, sent as `Authorization: Bearer` (OpenRouter and other OpenAI-compatible endpoints) |
 | `OLLAMA_TIMEOUT` | `20s` | per call |
 | `RADIO_DRY_RUN` | `false` | print messages as JSON lines instead of pitching |
 | `PORT` | `8080` | |
