@@ -11,6 +11,10 @@
 #               kubernetes: pods, nodes, namespaces
 #               flux:       kustomizations, helmreleases
 #               harvester:  vms, oldest-vm
+#               prometheus: the ids of its queries
+#
+#   prometheus sources take url, optional tokenFile, and queries (one PromQL
+#   instant query + title/message templates per fact; see README).
 sources:
   - name: homerun2-dev
     type: kubernetes
@@ -25,3 +29,15 @@ sources:
     kubeconfig: /etc/homerun2-radio-pitcher/kubeconfigs/platform
     facts: [pods, nodes]
     enabled: false
+  - name: homerun2-dev
+    type: prometheus
+    url: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+    enabled: false
+    queries:
+      - id: restarts-1h
+        query: sum(increase(kube_pod_container_status_restarts_total[1h]))
+        title: "Restarts: {{.Value}}"
+        message: "{{.Source}}: {{.Value}} pod restarts in the last hour"
+      - id: alerts-firing
+        query: count(ALERTS{alertstate="firing"}) > 0
+        message: "{{.Source}}: {{.Value}} alerts firing right now"

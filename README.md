@@ -132,7 +132,7 @@ is logged and skipped; the others still report.
 ```yaml
 sources:
   - name: homerun2-dev        # how the source is called on air
-    type: kubernetes          # kubernetes | flux | harvester
+    type: kubernetes          # kubernetes | flux | harvester | prometheus
     # kubeconfig: empty = in-cluster ServiceAccount
   - name: homerun2-dev
     type: flux
@@ -154,10 +154,59 @@ sources:
 | | `namespaces` | `dev: 41 namespaces` / `dev has 41 namespaces` |
 | `flux` | `kustomizations` | `Flux Kustomizations: 41/42 ready` / `dev: 41 of 42 Flux Kustomizations ready, 1 not ready` |
 | | `helmreleases` | same for HelmReleases (`helm.toolkit.fluxcd.io/v2`) |
+| `prometheus` | your `queries` | your templates, see below |
 | `harvester` | `vms` | `17 VMs on harvester` / `harvester: 17 VMs, 12 of them running` (`virtualmachines.kubevirt.io/v1`, `status.printableStatus`) |
 | | `oldest-vm` | `Oldest VM: db` / `harvester: the oldest VM is db, 400 days old` |
 
 A Flux kind with no objects yields no fact.
+
+#### Prometheus: facts from PromQL
+
+A `prometheus` source has no built-in facts. Each entry of `queries` is one
+instant query plus fixed texts, so a new fact is a change to `sources.yaml`,
+not to the code. Any metric that Prometheus scrapes can go on air, e.g.
+kube-state-metrics, node-exporter, Flux, or clusterscope
+(`clusterscope_lab_findings`, `clusterscope_app_gitops_drift`). Range windows
+give hourly and daily facts (`[1h]`, `[24h]`, `offset 1d`).
+
+```yaml
+sources:
+  - name: homerun2-dev
+    type: prometheus
+    url: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+    # tokenFile: /etc/homerun2-radio-pitcher/kubeconfigs/prometheus-token  # optional bearer token
+    # facts: [restarts-1h]   # subset of the query ids; empty = all
+    queries:
+      - id: restarts-1h
+        query: sum(increase(kube_pod_container_status_restarts_total[1h]))
+        title: "Restarts: {{.Value}}"
+        message: "{{.Source}}: {{.Value}} pod restarts in the last hour"
+      - id: alerts-firing
+        query: count(ALERTS{alertstate="firing"}) > 0   # empty result: nothing to say
+        message: "{{.Source}}: {{.Value}} alerts firing right now"
+      - id: busy-node
+        query: topk(1, 100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))))
+        decimals: 1
+        message: "{{.Source}}: busiest node {{.Labels.instance}} at {{.Value}}% CPU"
+```
+
+| Key | | |
+|---|---|---|
+| `id` | required | unique within the source; with the sample's labels it identifies the fact (repeat avoidance) |
+| `query` | required | PromQL, evaluated when the segment airs; vector or scalar |
+| `message` | required | scrolling line, Go `text/template` |
+| `title` | `message` | card title, fitted to the card |
+| `decimals` | `0` | rounding of `.Value` |
+| `limit` | `10` | facts per query at most (samples in label order) |
+
+Templates see `.Source` (the source name), `.Value` (the number, rounded),
+`.Float` (the raw value, for `{{if gt .Float 10.0}}`) and `.Labels` (the
+sample's labels; a missing label is empty). Every sample of a vector is one
+fact; an empty result, `NaN` and `Inf` say nothing, so filter in PromQL
+(`> 0`). The numbers come only from the query: the template holds the
+wording, the moderator may reword it but never change a number. A failing
+query is logged and skipped while the other queries still report; when every
+query fails, the source counts as failed.
 
 #### RBAC for the kubeconfigs
 

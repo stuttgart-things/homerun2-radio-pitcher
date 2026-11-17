@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -34,13 +35,14 @@ const (
 	TypeKubernetes = "kubernetes"
 	TypeFlux       = "flux"
 	TypeHarvester  = "harvester"
+	TypePrometheus = "prometheus"
 )
 
 // Config is one entry of sources.yaml.
 type Config struct {
 	// Name is how the source is called on air, e.g. the cluster name.
 	Name string `yaml:"name"`
-	// Type is kubernetes, flux or harvester.
+	// Type is kubernetes, flux, harvester or prometheus.
 	Type string `yaml:"type"`
 	// Enabled switches the source; unset means on.
 	Enabled *bool `yaml:"enabled"`
@@ -48,8 +50,16 @@ type Config struct {
 	Kubeconfig string `yaml:"kubeconfig"`
 	// Context selects a kubeconfig context; empty means the current one.
 	Context string `yaml:"context"`
-	// Facts limits the facts of the source; empty means all of its type.
+	// Facts limits the facts of the source; empty means all of its type
+	// (prometheus: query IDs).
 	Facts []string `yaml:"facts"`
+
+	// URL is the Prometheus base URL (prometheus only).
+	URL string `yaml:"url"`
+	// TokenFile holds an optional bearer token (prometheus only).
+	TokenFile string `yaml:"tokenFile"`
+	// Queries are the facts of a prometheus source.
+	Queries []Query `yaml:"queries"`
 }
 
 // IsEnabled reports whether the source is switched on.
@@ -91,8 +101,12 @@ func ParseConfig(data []byte) ([]Config, error) {
 		}
 		where += " " + c.Name
 		known, ok := FactsOf[c.Type]
+		if c.Type == TypePrometheus {
+			ok = true
+			known, errs = checkPrometheus(c, where, errs)
+		}
 		if !ok {
-			errs = append(errs, fmt.Errorf("%s: type %q, want one of kubernetes, flux, harvester", where, c.Type))
+			errs = append(errs, fmt.Errorf("%s: type %q, want one of kubernetes, flux, harvester, prometheus", where, c.Type))
 			continue
 		}
 		key := c.Type + "/" + c.Name
@@ -107,6 +121,33 @@ func ParseConfig(data []byte) ([]Config, error) {
 		}
 	}
 	return f.Sources, errors.Join(errs...)
+}
+
+// checkPrometheus validates a prometheus source and returns its query IDs.
+func checkPrometheus(c Config, where string, errs []error) ([]string, []error) {
+	if c.URL == "" {
+		errs = append(errs, fmt.Errorf("%s: prometheus needs url", where))
+	} else if u, err := url.Parse(c.URL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		errs = append(errs, fmt.Errorf("%s: url %q, want http(s)://host[:port]", where, c.URL))
+	}
+	if len(c.Queries) == 0 {
+		errs = append(errs, fmt.Errorf("%s: prometheus needs queries", where))
+	}
+	var ids []string
+	for i, q := range c.Queries {
+		if _, err := compileQuery(q); err != nil {
+			errs = append(errs, fmt.Errorf("%s: queries[%d]: %w", where, i, err))
+		}
+		if q.ID == "" {
+			continue
+		}
+		if slices.Contains(ids, q.ID) {
+			errs = append(errs, fmt.Errorf("%s: query id %q given twice", where, q.ID))
+			continue
+		}
+		ids = append(ids, q.ID)
+	}
+	return ids, errs
 }
 
 // wants reports whether fact is selected by the list (empty: all).
