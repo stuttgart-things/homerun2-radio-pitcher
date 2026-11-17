@@ -19,8 +19,8 @@ kcl run kcl -D config.scheduleYaml="$(cat examples/schedule.yaml)"
 | `config.image` | `ghcr.io/stuttgart-things/homerun2-radio-pitcher:main` | the release substitutes the tag |
 | `config.replicas` | `1` | 0 or 1 only |
 | `config.redisAddr`, `config.redisPort`, `config.redisStream` | `redis-stack.homerun2.svc.cluster.local`, `6379`, `ambient` | |
-| `config.redisPasswordSecretName`, `config.redisPasswordSecretKey` | , `password` | existing Secret with the Redis password |
-| `config.redisPassword` | | renders Secret `<name>-redis` when no existing Secret is named |
+| `config.redisPasswordSecretName`, `config.redisPasswordSecretKey` | , `password` | existing Secret with the Redis password; the ref is required, so a wrong name or key stops the pod (the homerun2 stack's `redis-stack-auth` uses `redis-password`) |
+| `config.redisPassword` | | renders Secret `<name>-redis` when no existing Secret is named; with neither, `REDIS_PASSWORD` is not set |
 | `config.scheduleYaml` | **required** | `schedule.yaml` |
 | `config.sourcesYaml` | | `sources.yaml`; empty: no infra-facts |
 | `config.kubeconfigSecret` | | existing Secret with kubeconfig files, mounted at `/etc/homerun2-radio-pitcher/kubeconfigs/` |

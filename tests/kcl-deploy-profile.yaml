@@ -6,7 +6,7 @@ config.redisAddr: redis-stack.homerun2.svc.cluster.local
 config.redisPort: "6379"
 config.redisStream: ambient
 config.redisPasswordSecretName: redis-stack-auth
-config.redisPasswordSecretKey: password
+config.redisPasswordSecretKey: redis-password
 config.timezone: Europe/Berlin
 config.newsFeeds: "cncf=https://www.cncf.io/feed/,kubernetes=https://kubernetes.io/feed.xml"
 config.inClusterReadAccess: true
