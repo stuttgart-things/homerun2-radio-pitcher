@@ -1,3 +1,16 @@
+# [0.3.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.2.0...v0.3.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **moderation:** reject numbers written as words, repeated, or a dropped source name ([45a770f](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/45a770f55295bf33d563bf8192572ee0c1f84905)), closes [#11](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/11)
+* **moderation:** require a keep string only when the template contains it ([cbde02c](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/cbde02cfa92dc138d3badbce0e7659423446566f))
+
+
+### Features
+
+* **sources:** prometheus source, facts from PromQL queries ([57149c5](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/57149c5ad4ab4d47c69bb250648f01a473b29103)), closes [#20](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/20)
+
 # [0.2.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.1.1...v0.2.0) (2026-11-17)
 
 
