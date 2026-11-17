@@ -146,6 +146,12 @@ func TestPhraseKeepsSourceName(t *testing.T) {
 	if got := m.Phrase(context.Background(), tmpl, 120, "homerun2-dev"); got == tmpl {
 		t.Fatal("answer with source name rejected")
 	}
+	// a template without the name (e.g. a prometheus query text) does not need it
+	tmpl = "clusterscope: 4 warning findings in labul"
+	m = &Moderator{Client: &fakeClient{answer: "labul has 4 warning findings in clusterscope."}}
+	if got := m.Phrase(context.Background(), tmpl, 120, "homerun2-dev"); got == tmpl {
+		t.Fatal("name required although the template lacks it")
+	}
 }
 
 func TestOllamaOpenAI(t *testing.T) {

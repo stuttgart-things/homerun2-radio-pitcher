@@ -58,7 +58,8 @@ func (m *Moderator) Headline(ctx context.Context, headline string, title panel.T
 
 // Phrase rewords a fact sentence (template is the fixed text, which already
 // holds every number). The answer may be at most maxLen characters and must
-// contain every keep string (e.g. the source name), case-insensitively.
+// contain every keep string (e.g. the source name) that the template
+// contains, case-insensitively.
 func (m *Moderator) Phrase(ctx context.Context, template string, maxLen int, keep ...string) string {
 	template = panel.Clean(template)
 	if m == nil || m.Client == nil {
@@ -69,7 +70,8 @@ func (m *Moderator) Phrase(ctx context.Context, template string, maxLen int, kee
 		err = fmt.Errorf("answer longer than %d characters", maxLen)
 	}
 	for _, k := range keep {
-		if err == nil && k != "" && !strings.Contains(strings.ToLower(out), strings.ToLower(k)) {
+		k = strings.ToLower(k)
+		if err == nil && k != "" && strings.Contains(strings.ToLower(template), k) && !strings.Contains(strings.ToLower(out), k) {
 			err = fmt.Errorf("answer drops %q", k)
 		}
 	}
