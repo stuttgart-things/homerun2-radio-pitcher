@@ -28,6 +28,9 @@ _opts = {
     scoutUrl = option("config.scoutUrl")
     scoutTokenSecretName = option("config.scoutTokenSecretName")
     scoutTokenSecretKey = option("config.scoutTokenSecretKey")
+    schmetterpauseUrl = option("config.schmetterpauseUrl")
+    schmetterpauseTokenSecretName = option("config.schmetterpauseTokenSecretName")
+    schmetterpauseTokenSecretKey = option("config.schmetterpauseTokenSecretKey")
     llmEnabled = option("config.llmEnabled")
     ollamaUrl = option("config.ollamaUrl")
     ollamaModel = option("config.ollamaModel")
@@ -90,6 +93,12 @@ config: schema.RadioPitcher = schema.RadioPitcher {
         scoutTokenSecretName = _opts.scoutTokenSecretName
     if _opts.scoutTokenSecretKey:
         scoutTokenSecretKey = _opts.scoutTokenSecretKey
+    if _opts.schmetterpauseUrl:
+        schmetterpauseUrl = _opts.schmetterpauseUrl
+    if _opts.schmetterpauseTokenSecretName:
+        schmetterpauseTokenSecretName = _opts.schmetterpauseTokenSecretName
+    if _opts.schmetterpauseTokenSecretKey:
+        schmetterpauseTokenSecretKey = _opts.schmetterpauseTokenSecretKey
     if _opts.llmEnabled:
         llmEnabled = _true(_opts.llmEnabled)
     if _opts.ollamaUrl:

@@ -68,6 +68,19 @@ _env = [
         }
     }
 ] if config.scoutUrl and config.scoutTokenSecretName else []) + ([
+    {name: "RADIO_SCHMETTERPAUSE_URL", value: config.schmetterpauseUrl}
+] if config.schmetterpauseUrl else []) + ([
+    {
+        name: "RADIO_SCHMETTERPAUSE_TOKEN"
+        valueFrom: {
+            secretKeyRef: {
+                name: config.schmetterpauseTokenSecretName
+                key: config.schmetterpauseTokenSecretKey
+                optional: False
+            }
+        }
+    }
+] if config.schmetterpauseUrl and config.schmetterpauseTokenSecretName else []) + ([
     {name: "RADIO_LLM_ENABLED", value: "true"}
     {name: "OLLAMA_URL", value: config.ollamaUrl}
     {name: "OLLAMA_MODEL", value: config.ollamaModel}

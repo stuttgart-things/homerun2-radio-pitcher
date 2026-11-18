@@ -25,6 +25,7 @@ import (
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/moderation"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/pitcher"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/schedule"
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/schmetterpause"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/scout"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/segment"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/sources"
@@ -142,6 +143,14 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 		log.Warn("no scout configured (RADIO_SCOUT_URL), daily-summary slots stay silent")
 	}
 
+	var table segment.TableStats
+	if cfg.SchmetterpauseURL != "" {
+		table = &schmetterpause.Client{URL: cfg.SchmetterpauseURL, Token: cfg.SchmetterpauseToken, HTTP: &http.Client{Timeout: cfg.SourceTimeout}}
+		log.Info("schmetterpause on", "url", cfg.SchmetterpauseURL, "token", cfg.SchmetterpauseToken != "")
+	} else {
+		log.Warn("no schmetterpause configured (RADIO_SCHMETTERPAUSE_URL), tabletennis-stats slots stay silent")
+	}
+
 	segs := segment.NewRegistry(
 		segment.TimeCheck{},
 		&segment.News{
@@ -168,6 +177,13 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 			MessageMax: cfg.MessageMax,
 			Timeout:    cfg.SourceTimeout,
 			Own:        cfg.System,
+		},
+		&segment.TabletennisStats{
+			Source:     table,
+			Moderator:  mod,
+			Title:      cfg.Title,
+			MessageMax: cfg.MessageMax,
+			Timeout:    cfg.SourceTimeout,
 		},
 	)
 
@@ -309,7 +325,7 @@ func validate() error {
 	if err != nil {
 		return err
 	}
-	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{})
+	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{}, &segment.TabletennisStats{})
 	for _, u := range s.Unknown(known.Has) {
 		slog.Warn("unknown segment, will be skipped", "slot", u, "known", known.Names())
 	}

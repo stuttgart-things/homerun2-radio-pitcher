@@ -34,8 +34,9 @@ on a free panel. Concept: stuttgart-things/homerun-library#146.
   `homerun.Message`
 - `internal/segment`: `Segment` interface and `Registry`; `time-check`,
   `news` (own RSS/Atom parser, seen-store with TTL), `daily-summary`
-  (homerun2-scout digest, `internal/scout`), `infra-facts` (random
-  pick, avoids recent)
+  (homerun2-scout digest, `internal/scout`), `tabletennis-stats`
+  (schmetterpause `/api/statistics`, `internal/schmetterpause`),
+  `infra-facts` (random pick, avoids recent)
 - `internal/sources`: `Source` interface, `sources.yaml`; `Kubernetes`
   (typed client), `Flux` and `Harvester` (dynamic client)
 - `internal/moderation`: `Ollama` (OpenAI-compatible or native API),
