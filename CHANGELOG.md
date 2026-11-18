@@ -1,3 +1,10 @@
+# [0.9.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.8.1...v0.9.0) (2026-11-18)
+
+
+### Features
+
+* segment did-you-know from the Backstage catalog ([b2cfe91](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/b2cfe918838368297ec72a0c41206247b639abe9)), closes [#13](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/13)
+
 ## [0.8.1](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.8.0...v0.8.1) (2026-11-18)
 
 
