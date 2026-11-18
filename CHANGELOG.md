@@ -1,3 +1,10 @@
+## [0.8.1](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.8.0...v0.8.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **deps:** update module go.yaml.in/yaml/v3 to v3.0.6 ([3ae8490](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/3ae8490078b526ac9fff844d9290d1020fca1717))
+
 # [0.8.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.7.0...v0.8.0) (2026-11-18)
 
 
