@@ -1,3 +1,10 @@
+# [0.8.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.7.0...v0.8.0) (2026-11-18)
+
+
+### Features
+
+* segment tabletennis-stats from schmetterpause ([7fedd89](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/7fedd891b0ac10703e5bad7d76d8602bce6f2825)), closes [schmetterpause#391](https://github.com/schmetterpause/issues/391) [#6](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/6)
+
 # [0.7.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.6.0...v0.7.0) (2026-11-18)
 
 
