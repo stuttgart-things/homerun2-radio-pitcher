@@ -1,3 +1,10 @@
+# [0.7.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.6.0...v0.7.0) (2026-11-18)
+
+
+### Features
+
+* segment daily-summary from homerun2-scout ([8044936](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/8044936807274f3db472a26048ada6bad6ed7edb)), closes [#7](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/7)
+
 # [0.6.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.5.0...v0.6.0) (2026-11-17)
 
 
