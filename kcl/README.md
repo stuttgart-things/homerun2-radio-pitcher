@@ -32,6 +32,8 @@ kcl run kcl -D config.scheduleYaml="$(cat examples/schedule.yaml)"
 | `config.newsFeeds` | | `name=url,name=url` |
 | `config.scoutUrl` | | homerun2-scout for `daily-summary`, e.g. `http://homerun2-scout` |
 | `config.scoutTokenSecretName`, `config.scoutTokenSecretKey` | , `token` | existing Secret with scout's `AUTH_TOKEN`, as `RADIO_SCOUT_TOKEN`; required ref |
+| `config.schmetterpauseUrl` | | schmetterpause for `tabletennis-stats`, e.g. `http://schmetterpause.schmetterpause.svc` |
+| `config.schmetterpauseTokenSecretName`, `config.schmetterpauseTokenSecretKey` | , `statistics-token` | existing Secret with schmetterpause's `SP_STATISTICS_TOKEN`, as `RADIO_SCHMETTERPAUSE_TOKEN`; required ref |
 | `config.llmEnabled`, `config.ollamaUrl`, `config.ollamaModel`, `config.ollamaApi` | off, , , `openai` | |
 | `config.llmApiKeySecretName`, `config.llmApiKeySecretKey` | , `api-key` | existing Secret with an API key (e.g. OpenRouter), as `LLM_API_KEY`; required ref |
 | `config.servicePort` | `80` | |

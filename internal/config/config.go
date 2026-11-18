@@ -51,6 +51,11 @@ type Config struct {
 	ScoutURL   string
 	ScoutToken string
 
+	// SchmetterpauseURL and SchmetterpauseToken reach schmetterpause's
+	// GET /api/statistics for tabletennis-stats (its SP_STATISTICS_TOKEN).
+	SchmetterpauseURL   string
+	SchmetterpauseToken string
+
 	// BasePath is the URL prefix of the UI (BASE_PATH), e.g. "/radio"
 	// behind homerun2-portal; "" serves it at the root.
 	BasePath string
@@ -103,6 +108,9 @@ func Load(getenv func(string) string) (*Config, error) {
 		FactsRecent:   e.integer("RADIO_FACTS_RECENT", 4),
 		ScoutURL:      e.str("RADIO_SCOUT_URL", ""),
 		ScoutToken:    strings.TrimSpace(e.str("RADIO_SCOUT_TOKEN", "")),
+
+		SchmetterpauseURL:   e.str("RADIO_SCHMETTERPAUSE_URL", ""),
+		SchmetterpauseToken: strings.TrimSpace(e.str("RADIO_SCHMETTERPAUSE_TOKEN", "")),
 
 		UIEnabled:   e.boolean("RADIO_UI_ENABLED", true),
 		UIToken:     strings.TrimSpace(e.str("RADIO_UI_TOKEN", "")),

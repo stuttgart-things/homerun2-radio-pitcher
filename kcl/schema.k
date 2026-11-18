@@ -50,6 +50,11 @@ schema RadioPitcher:
     scoutUrl: str = ""
     scoutTokenSecretName: str = ""
     scoutTokenSecretKey: str = "token"
+    # schmetterpause for tabletennis-stats (GET /api/statistics); the token
+    # (its SP_STATISTICS_TOKEN) from an existing Secret
+    schmetterpauseUrl: str = ""
+    schmetterpauseTokenSecretName: str = ""
+    schmetterpauseTokenSecretKey: str = "statistics-token"
 
     # Moderation through a local Ollama, off by default
     llmEnabled: bool = False
