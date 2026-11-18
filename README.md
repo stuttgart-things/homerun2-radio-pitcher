@@ -152,6 +152,7 @@ The full examples are [`examples/schedule.yaml`](examples/schedule.yaml) and
 | `time-check` | – | `It's 15:00` / `Tuesday, 17 November 2026` in `RADIO_TIMEZONE` |
 | `news` | `count` (1), `feeds` (names, default all) | the newest headlines of the feeds not aired in the last `RADIO_NEWS_SEEN_FOR`, younger than `RADIO_NEWS_MAX_AGE`. The title is the headline shortened to fit the card; the message is `<feed>: <full headline>` |
 | `infra-facts` | `count` (1), `sources` (names, default all) | randomly picked facts. The last `RADIO_FACTS_RECENT` picks are avoided while other facts are available |
+| `daily-summary` | `window` (`hourly`, `daily`, `weekly`; default `daily`), `count` (3), `tags` (names) | the balance of the window from [homerun2-scout](https://github.com/stuttgart-things/homerun2-scout) (`RADIO_SCOUT_URL`), in this order: `24h: 312 msgs, 3 err` / `In the last 24 h: 312 messages, 3 errors, 0 critical (before: 290)`; per tag `24h: 4 release` / `In the last 24 h: 4 messages tagged release`; `Busiest: kubernetes` / `In the last 24 h: kubernetes sent 120 messages, 2 of them alerts`. Scout's windows are rolling (the last 24 h, not since midnight), and the cards say so; when retention has dropped part of the window, "at least" and no comparison. The station's own cards are in scout's index too: set `DIGEST_EXCLUDE_SYSTEMS=radio` (or `RADIO_SYSTEM`) on scout so the counts leave them out; the segment never names its own system the busiest |
 
 A segment with nothing to say (every headline seen, every source down) airs
 nothing, and the panel keeps its idle clock.
@@ -327,6 +328,8 @@ failed call airs the fixed text.
 | `RADIO_NEWS_MAX_AGE` | `48h` | older headlines are skipped (undated ones are kept) |
 | `RADIO_SOURCE_TIMEOUT` | `10s` | per source query |
 | `RADIO_FACTS_RECENT` | `4` | recently aired facts avoided |
+| `RADIO_SCOUT_URL` | | homerun2-scout for `daily-summary`, e.g. `http://homerun2-scout.homerun2.svc`; unset: daily-summary stays silent |
+| `RADIO_SCOUT_TOKEN` | | scout's `AUTH_TOKEN` (bearer) |
 | `RADIO_LLM_ENABLED` | `false` | moderation switch |
 | `OLLAMA_URL` | | e.g. `http://ollama.ollama.svc.cluster.local:11434` |
 | `OLLAMA_MODEL` | | e.g. `llama3.2:3b` |

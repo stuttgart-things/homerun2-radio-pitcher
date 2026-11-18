@@ -10,6 +10,9 @@ config.redisPasswordSecretKey: redis-password
 config.timezone: Europe/Berlin
 config.basePath: /radio
 config.newsFeeds: "cncf=https://www.cncf.io/feed/,kubernetes=https://kubernetes.io/feed.xml"
+config.scoutUrl: http://homerun2-scout.homerun2.svc.cluster.local
+config.scoutTokenSecretName: homerun2-scout-token
+config.scoutTokenSecretKey: auth-token
 config.inClusterReadAccess: true
 config.kubeconfigSecret: homerun2-radio-pitcher-kubeconfigs
 config.scheduleYaml: |
@@ -61,7 +64,7 @@ config.scheduleYaml: |
     "17:00-19:00":
       show: after-work
       extra:
-        - { segment: daily-summary, at: "17:30" }
+        - { segment: daily-summary, at: "17:30", tags: [release] }
     "19:00-07:00": { show: night, clock: night, brightness: 20 }
 config.sourcesYaml: |
   # sources.yaml: where the infra-facts segment gets its numbers.

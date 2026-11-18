@@ -55,6 +55,19 @@ _env = [
 ] if config.sourcesYaml else []) + ([
     {name: "RADIO_NEWS_FEEDS", value: config.newsFeeds}
 ] if config.newsFeeds else []) + ([
+    {name: "RADIO_SCOUT_URL", value: config.scoutUrl}
+] if config.scoutUrl else []) + ([
+    {
+        name: "RADIO_SCOUT_TOKEN"
+        valueFrom: {
+            secretKeyRef: {
+                name: config.scoutTokenSecretName
+                key: config.scoutTokenSecretKey
+                optional: False
+            }
+        }
+    }
+] if config.scoutUrl and config.scoutTokenSecretName else []) + ([
     {name: "RADIO_LLM_ENABLED", value: "true"}
     {name: "OLLAMA_URL", value: config.ollamaUrl}
     {name: "OLLAMA_MODEL", value: config.ollamaModel}

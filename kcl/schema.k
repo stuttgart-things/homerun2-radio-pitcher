@@ -46,6 +46,10 @@ schema RadioPitcher:
     uiTokenSecretKey: str = "ui-token"
     # "name=url,name=url"
     newsFeeds: str = ""
+    # homerun2-scout for daily-summary; the token from an existing Secret
+    scoutUrl: str = ""
+    scoutTokenSecretName: str = ""
+    scoutTokenSecretKey: str = "token"
 
     # Moderation through a local Ollama, off by default
     llmEnabled: bool = False

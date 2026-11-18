@@ -25,6 +25,9 @@ _opts = {
     uiTokenSecretName = option("config.uiTokenSecretName")
     uiTokenSecretKey = option("config.uiTokenSecretKey")
     newsFeeds = option("config.newsFeeds")
+    scoutUrl = option("config.scoutUrl")
+    scoutTokenSecretName = option("config.scoutTokenSecretName")
+    scoutTokenSecretKey = option("config.scoutTokenSecretKey")
     llmEnabled = option("config.llmEnabled")
     ollamaUrl = option("config.ollamaUrl")
     ollamaModel = option("config.ollamaModel")
@@ -81,6 +84,12 @@ config: schema.RadioPitcher = schema.RadioPitcher {
         uiTokenSecretKey = _opts.uiTokenSecretKey
     if _opts.newsFeeds:
         newsFeeds = _opts.newsFeeds
+    if _opts.scoutUrl:
+        scoutUrl = _opts.scoutUrl
+    if _opts.scoutTokenSecretName:
+        scoutTokenSecretName = _opts.scoutTokenSecretName
+    if _opts.scoutTokenSecretKey:
+        scoutTokenSecretKey = _opts.scoutTokenSecretKey
     if _opts.llmEnabled:
         llmEnabled = _true(_opts.llmEnabled)
     if _opts.ollamaUrl:
