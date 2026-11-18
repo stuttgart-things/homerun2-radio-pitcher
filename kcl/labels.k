@@ -31,6 +31,9 @@ _opts = {
     schmetterpauseUrl = option("config.schmetterpauseUrl")
     schmetterpauseTokenSecretName = option("config.schmetterpauseTokenSecretName")
     schmetterpauseTokenSecretKey = option("config.schmetterpauseTokenSecretKey")
+    backstageUrl = option("config.backstageUrl")
+    backstageTokenSecretName = option("config.backstageTokenSecretName")
+    backstageTokenSecretKey = option("config.backstageTokenSecretKey")
     llmEnabled = option("config.llmEnabled")
     ollamaUrl = option("config.ollamaUrl")
     ollamaModel = option("config.ollamaModel")
@@ -99,6 +102,12 @@ config: schema.RadioPitcher = schema.RadioPitcher {
         schmetterpauseTokenSecretName = _opts.schmetterpauseTokenSecretName
     if _opts.schmetterpauseTokenSecretKey:
         schmetterpauseTokenSecretKey = _opts.schmetterpauseTokenSecretKey
+    if _opts.backstageUrl:
+        backstageUrl = _opts.backstageUrl
+    if _opts.backstageTokenSecretName:
+        backstageTokenSecretName = _opts.backstageTokenSecretName
+    if _opts.backstageTokenSecretKey:
+        backstageTokenSecretKey = _opts.backstageTokenSecretKey
     if _opts.llmEnabled:
         llmEnabled = _true(_opts.llmEnabled)
     if _opts.ollamaUrl:

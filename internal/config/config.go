@@ -56,6 +56,13 @@ type Config struct {
 	SchmetterpauseURL   string
 	SchmetterpauseToken string
 
+	// BackstageURL and BackstageToken reach the Backstage catalog for
+	// did-you-know (a static external access token); an aired entry is not
+	// repeated within DidYouKnowSeenFor.
+	BackstageURL      string
+	BackstageToken    string
+	DidYouKnowSeenFor time.Duration
+
 	// BasePath is the URL prefix of the UI (BASE_PATH), e.g. "/radio"
 	// behind homerun2-portal; "" serves it at the root.
 	BasePath string
@@ -111,6 +118,10 @@ func Load(getenv func(string) string) (*Config, error) {
 
 		SchmetterpauseURL:   e.str("RADIO_SCHMETTERPAUSE_URL", ""),
 		SchmetterpauseToken: strings.TrimSpace(e.str("RADIO_SCHMETTERPAUSE_TOKEN", "")),
+
+		BackstageURL:      e.str("RADIO_BACKSTAGE_URL", ""),
+		BackstageToken:    strings.TrimSpace(e.str("RADIO_BACKSTAGE_TOKEN", "")),
+		DidYouKnowSeenFor: e.duration("RADIO_DID_YOU_KNOW_SEEN_FOR", 7*24*time.Hour),
 
 		UIEnabled:   e.boolean("RADIO_UI_ENABLED", true),
 		UIToken:     strings.TrimSpace(e.str("RADIO_UI_TOKEN", "")),

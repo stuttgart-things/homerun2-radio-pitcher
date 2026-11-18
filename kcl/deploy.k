@@ -81,6 +81,19 @@ _env = [
         }
     }
 ] if config.schmetterpauseUrl and config.schmetterpauseTokenSecretName else []) + ([
+    {name: "RADIO_BACKSTAGE_URL", value: config.backstageUrl}
+] if config.backstageUrl else []) + ([
+    {
+        name: "RADIO_BACKSTAGE_TOKEN"
+        valueFrom: {
+            secretKeyRef: {
+                name: config.backstageTokenSecretName
+                key: config.backstageTokenSecretKey
+                optional: False
+            }
+        }
+    }
+] if config.backstageUrl and config.backstageTokenSecretName else []) + ([
     {name: "RADIO_LLM_ENABLED", value: "true"}
     {name: "OLLAMA_URL", value: config.ollamaUrl}
     {name: "OLLAMA_MODEL", value: config.ollamaModel}
