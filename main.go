@@ -19,6 +19,7 @@ import (
 	// Embedded zone data: the static base image has no tzdata.
 	_ "time/tzdata"
 
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/backstage"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/config"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/director"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/handlers"
@@ -151,6 +152,14 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 		log.Warn("no schmetterpause configured (RADIO_SCHMETTERPAUSE_URL), tabletennis-stats slots stay silent")
 	}
 
+	var cat segment.Catalog
+	if cfg.BackstageURL != "" {
+		cat = &backstage.Client{URL: cfg.BackstageURL, Token: cfg.BackstageToken, HTTP: &http.Client{Timeout: cfg.SourceTimeout}}
+		log.Info("backstage on", "url", cfg.BackstageURL, "token", cfg.BackstageToken != "")
+	} else {
+		log.Warn("no backstage configured (RADIO_BACKSTAGE_URL), did-you-know slots stay silent")
+	}
+
 	segs := segment.NewRegistry(
 		segment.TimeCheck{},
 		&segment.News{
@@ -184,6 +193,14 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 			Title:      cfg.Title,
 			MessageMax: cfg.MessageMax,
 			Timeout:    cfg.SourceTimeout,
+		},
+		&segment.DidYouKnow{
+			Catalog:    cat,
+			Moderator:  mod,
+			Title:      cfg.Title,
+			MessageMax: cfg.MessageMax,
+			Timeout:    cfg.SourceTimeout,
+			SeenFor:    cfg.DidYouKnowSeenFor,
 		},
 	)
 
@@ -325,7 +342,7 @@ func validate() error {
 	if err != nil {
 		return err
 	}
-	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{}, &segment.TabletennisStats{})
+	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{}, &segment.TabletennisStats{}, &segment.DidYouKnow{})
 	for _, u := range s.Unknown(known.Has) {
 		slog.Warn("unknown segment, will be skipped", "slot", u, "known", known.Names())
 	}

@@ -35,6 +35,39 @@ You turn an infrastructure fact into one short, casual English sentence. Rules:
 - Keep the name at the start of the template (the cluster or source) exactly as it is.
 - Do not invent names or facts.`
 
+const blurbSystem = `You are the host of an office radio that plays on a 64x64 LED matrix.
+You turn an entry of the team's software catalog into one short, casual English "did you know" sentence. Rules:
+- Answer with the sentence only: one line, no quotes.
+- Keep the entry's name exactly as it is.
+- Use only what the entry says. Do not invent features, owners or facts.
+- Use only the numbers in the entry, written exactly as they are, as digits. Never spell a number out.`
+
+// Blurb turns a catalog entry (template: "<name>: <description>") into one
+// sentence of at most maxLen characters that keeps name. The same checks
+// as Phrase; on any failure the template airs.
+func (m *Moderator) Blurb(ctx context.Context, template, name string, maxLen int) string {
+	template = panel.Clean(template)
+	if m == nil || m.Client == nil {
+		return template
+	}
+	user := "Entry: " + template
+	if maxLen > 0 {
+		user = fmt.Sprintf("At most %d characters.\n%s", maxLen, user)
+	}
+	out, err := m.ask(ctx, blurbSystem, user, template)
+	if err == nil && maxLen > 0 && utf8.RuneCountInString(out) > maxLen {
+		err = fmt.Errorf("answer longer than %d characters", maxLen)
+	}
+	if err == nil && name != "" && !strings.Contains(strings.ToLower(out), strings.ToLower(name)) {
+		err = fmt.Errorf("answer drops %q", name)
+	}
+	if err != nil {
+		m.logger().Debug("moderation fallback", "kind", "blurb", "reason", err)
+		return template
+	}
+	return out
+}
+
 // Headline shortens a news headline to fit title. Without a model, or when the
 // answer fails a check, it returns title.Fit(headline).
 func (m *Moderator) Headline(ctx context.Context, headline string, title panel.Title) string {

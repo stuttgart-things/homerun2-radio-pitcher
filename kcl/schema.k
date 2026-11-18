@@ -55,6 +55,11 @@ schema RadioPitcher:
     schmetterpauseUrl: str = ""
     schmetterpauseTokenSecretName: str = ""
     schmetterpauseTokenSecretKey: str = "statistics-token"
+    # Backstage catalog for did-you-know; the token (a static external
+    # access token, restricted to the catalog) from an existing Secret
+    backstageUrl: str = ""
+    backstageTokenSecretName: str = ""
+    backstageTokenSecretKey: str = "backstage-token"
 
     # Moderation through a local Ollama, off by default
     llmEnabled: bool = False

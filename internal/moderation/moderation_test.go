@@ -154,6 +154,32 @@ func TestPhraseKeepsSourceName(t *testing.T) {
 	}
 }
 
+func TestBlurb(t *testing.T) {
+	tmpl := "homerun2-scout: Analytics for homerun2 messages, with 3 digest windows"
+	for _, tc := range []struct {
+		answer string
+		ok     bool
+	}{
+		{"Did you know homerun2-scout counts homerun2 messages in 3 digest windows?", true},
+		{"Did you know the scout counts messages in 3 windows?", false},                     // name dropped
+		{"Did you know homerun2-scout keeps 30 days of messages?", false},                   // invented number
+		{"Did you know homerun2-scout " + strings.Repeat("really ", 30) + "counts?", false}, // too long
+	} {
+		m := &Moderator{Client: &fakeClient{answer: tc.answer}}
+		got := m.Blurb(context.Background(), tmpl, "homerun2-scout", 120)
+		if (got == tc.answer) != tc.ok {
+			t.Errorf("answer %q: aired %q, want accepted=%v", tc.answer, got, tc.ok)
+		}
+		if !tc.ok && got != tmpl {
+			t.Errorf("rejected answer: aired %q, want the template", got)
+		}
+	}
+	var m *Moderator
+	if got := m.Blurb(context.Background(), tmpl, "homerun2-scout", 120); got != tmpl {
+		t.Fatalf("no model: %q", got)
+	}
+}
+
 func TestOllamaOpenAI(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/chat/completions" {
