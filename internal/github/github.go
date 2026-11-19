@@ -167,7 +167,7 @@ var (
 	mdLink    = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
 	refParens = regexp.MustCompile(`\s*\((?:#?\d+|[0-9a-f]{7,40})\)(?:\s*,?\s*\((?:#?\d+|[0-9a-f]{7,40})\))*`)
 	scope     = regexp.MustCompile(`^\*\*([^*]+):\*\*\s*`)
-	closes    = regexp.MustCompile(`(?i),?\s*(?:closes|fixes|resolves)\s+#\d+(?:\s*,?\s*#\d+)*`)
+	closes    = regexp.MustCompile(`(?i),?\s*(?:closes|fixes|resolves)\s+(?:[\w.-]+/[\w.-]+)?#\d+(?:\s*,?\s*(?:[\w.-]+/[\w.-]+)?#\d+)*`)
 	spaces    = regexp.MustCompile(`\s+`)
 )
 

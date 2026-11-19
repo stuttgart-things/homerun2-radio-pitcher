@@ -76,7 +76,8 @@ func TestFirstNote(t *testing.T) {
 		notes: "catalog: keep field names in the VM cards",
 		"# [0.15.0](x) (2026-11-19)\n\n### Features\n\n* news mix lets the feeds take turns, each in its own order ([ad494c4](https://x/commit/ad494c4e7efe))\n": "news mix lets the feeds take turns, each in its own order",
 		"- plain `code` entry (#12)": "plain code entry",
-		"* news mix ([ad494c4](https://x/c/ad494c4)), closes [#50](https://x/issues/50) [#51](https://x/issues/51)": "news mix",
+		"* news mix ([ad494c4](https://x/c/ad494c4)), closes [#50](https://x/issues/50) [#51](https://x/issues/51)":                                                                       "news mix",
+		"* **fluent-bit:** expose Buffer_Size ([#1045](https://x/issues/1045)) ([fe1264c](https://x/commit/fe1264ca0e74)), closes [stuttgart-things/harvester#753](https://x/issues/753)": "fluent-bit: expose Buffer_Size",
 		"no list here": "",
 	} {
 		if got := FirstNote(in); got != want {
