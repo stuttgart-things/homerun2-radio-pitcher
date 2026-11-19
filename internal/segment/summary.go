@@ -26,7 +26,9 @@ type Analytics interface {
 // 24 h"), and the cards say so.
 //
 // Parameters: window (hourly, daily, weekly; default daily), count (default
-// 3: overview, tags, busiest system, in this order), tags (names).
+// 3: overview, tags, top system, in this order), tags (names). The top
+// system is scout's first: "Most alerts" when it raised any, else
+// "Busiest".
 type DailySummary struct {
 	Scout     Analytics // nil: not configured
 	Moderator *moderation.Moderator
@@ -95,12 +97,18 @@ func (d *DailySummary) Build(ctx context.Context, _ time.Time, p schedule.Params
 		})
 	}
 
+	// Scout ranks its top systems by alerts first, then by messages, and
+	// returns only a few: the first one is the busiest only when no system
+	// raised an alert. A system without alerts may be missing from the
+	// list, so the radio cannot rank by messages itself.
 	if top, ok := busiest(cur.TopSystems, d.Own); ok {
 		m := fmt.Sprintf("In %s: %s sent %d messages", long, top.System, top.Count)
+		title := "Busiest: " + top.System
 		if top.Alerts > 0 {
-			m += fmt.Sprintf(", %d of them alerts", top.Alerts)
+			m = fmt.Sprintf("In %s: %s raised the most alerts, %d of its %d messages", long, top.System, top.Alerts, top.Count)
+			title = "Most alerts: " + top.System
 		}
-		facts = append(facts, summaryFact{title: "Busiest: " + top.System, message: m})
+		facts = append(facts, summaryFact{title: title, message: m})
 	}
 
 	count := min(p.Int("count", 3), len(facts))
@@ -116,7 +124,7 @@ func (d *DailySummary) Build(ctx context.Context, _ time.Time, p schedule.Params
 
 type summaryFact struct{ title, message string }
 
-// busiest is the first system that is not the station itself.
+// busiest is scout's first system that is not the station itself.
 func busiest(systems []scout.SystemCount, own string) (scout.SystemCount, bool) {
 	for _, s := range systems {
 		if s.System != own {
