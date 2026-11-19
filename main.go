@@ -259,6 +259,7 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 		Station:  director.Station{System: cfg.System, Severity: cfg.Severity, Author: cfg.Author},
 		Location: cfg.Location,
 		Spacing:  cfg.Spacing,
+		Archive:  cfg.ArchiveSize,
 		Observe:  handlers.Observe,
 	}
 	return &station{cfg: cfg, watcher: w, pitcher: p, director: d, segments: segs, sources: tracked}, nil
@@ -297,6 +298,7 @@ func serve() error {
 			Sources:  st.sources,
 			Title:    cfg.Title,
 			Token:    cfg.UIToken,
+			Started:  time.Now(),
 		}).Handler()
 		slog.Info("programme UI on", "path", cfg.BasePath+"/", "controls", cfg.UIToken != "")
 	}

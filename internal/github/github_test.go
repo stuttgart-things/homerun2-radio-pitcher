@@ -77,7 +77,7 @@ func TestFirstNote(t *testing.T) {
 		"# [0.15.0](x) (2026-11-19)\n\n### Features\n\n* news mix lets the feeds take turns, each in its own order ([ad494c4](https://x/commit/ad494c4e7efe))\n": "news mix lets the feeds take turns, each in its own order",
 		"- plain `code` entry (#12)": "plain code entry",
 		"* news mix ([ad494c4](https://x/c/ad494c4)), closes [#50](https://x/issues/50) [#51](https://x/issues/51)": "news mix",
-		"no list here":               "",
+		"no list here": "",
 	} {
 		if got := FirstNote(in); got != want {
 			t.Errorf("FirstNote(%q) = %q, want %q", in[:min(30, len(in))], got, want)

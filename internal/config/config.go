@@ -35,9 +35,11 @@ type Config struct {
 	Severity string
 	Author   string
 
-	Spacing    time.Duration
-	Title      panel.Title
-	MessageMax int
+	Spacing time.Duration
+	// ArchiveSize is how many aired cards the UI's archive keeps.
+	ArchiveSize int
+	Title       panel.Title
+	MessageMax  int
 
 	NewsFeeds   string
 	NewsTimeout time.Duration
@@ -107,7 +109,8 @@ func Load(getenv func(string) string) (*Config, error) {
 		Severity: e.str("RADIO_SEVERITY", "INFO"),
 		Author:   e.str("RADIO_AUTHOR", "radio"),
 
-		Spacing: e.duration("RADIO_ITEM_SPACING", 15*time.Second),
+		Spacing:     e.duration("RADIO_ITEM_SPACING", 15*time.Second),
+		ArchiveSize: e.integer("RADIO_ARCHIVE_SIZE", 300),
 		Title: panel.Title{
 			Lines: e.integer("RADIO_TITLE_LINES", panel.Card4x6.Lines),
 			Width: e.integer("RADIO_TITLE_WIDTH", panel.Card4x6.Width),

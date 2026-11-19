@@ -26,7 +26,7 @@ func TestReleasesSegment(t *testing.T) {
 	berlin, _ := time.LoadLocation("Europe/Berlin")
 	at := time.Date(2026, 11, 19, 15, 0, 0, 0, berlin)
 	f := &fakeReleases{list: []github.Release{
-		{Repo: "homerun2-radio-pitcher", Tag: "v0.15.0", Note: "news mix lets the feeds take turns", At: at.Add(-time.Hour)},
+		{Repo: "homerun2-radio-pitcher", Tag: "v0.15.0", Note: "news mix lets the feeds take turns", URL: "https://github.com/o/r/releases/tag/v0.15.0", At: at.Add(-time.Hour)},
 		{Repo: "argocd", Tag: "v0.119.0", At: at.Add(-2 * time.Hour)},
 	}}
 	r := &Releases{Lister: f, Org: "stuttgart-things", Title: panel.Card4x6, MessageMax: 120}
@@ -42,7 +42,8 @@ func TestReleasesSegment(t *testing.T) {
 	if len(items) != 2 ||
 		items[0].Message != "homerun2-radio-pitcher v0.15.0: news mix lets the feeds take turns" ||
 		items[1].Message != "stuttgart-things released argocd v0.119.0 at 13:00" ||
-		!panel.Card4x6.Fits(items[0].Title) {
+		!panel.Card4x6.Fits(items[0].Title) ||
+		items[0].URL != "https://github.com/o/r/releases/tag/v0.15.0" {
 		t.Fatalf("items = %+v", items)
 	}
 	// each once

@@ -1,6 +1,141 @@
 {{define "index"}}<!DOCTYPE html>
 <html lang="en">
-<head>
+{{template "head" .}}
+<body>
+<header class="header-bar">
+  <div><h1>HOMERUN² RADIO</h1><div class="subtitle">programme of the LED matrix</div></div>
+  <div class="meta">{{.Zone}} · {{.Version}}</div>
+</header>
+<main>
+  <section class="wide" hx-get="{{.Base}}/ui/part/now" hx-trigger="every 15s, radio-changed from:body" hx-swap="innerHTML">{{template "now" .}}</section>
+  {{if .Controls}}<section class="wide" id="control">{{template "control" .}}</section>{{end}}
+  <section hx-get="{{.Base}}/ui/part/aired" hx-trigger="every 15s" hx-swap="innerHTML">{{template "aired" .}}</section>
+  <section hx-get="{{.Base}}/ui/part/sources" hx-trigger="every 30s" hx-swap="innerHTML">{{template "sources" .}}</section>
+  <section class="wide">
+    <h2>Preview</h2>
+    <p class="muted">Builds a segment now, as the next slot would air it, without pitching it. Headlines are not marked as seen, facts not as recent. Queries the feeds, sources and, if on, the model.</p>
+    <form hx-post="{{.Base}}/ui/preview" hx-target="#preview" hx-swap="innerHTML">
+      <select name="segment">{{range .Segments}}<option>{{.}}</option>{{end}}</select>
+      <input name="params" placeholder="count=2 feeds=cncf" autocomplete="off">
+      <button type="submit">Preview</button>
+    </form>
+    <div id="preview"></div>
+  </section>
+</main>
+</body>
+</html>{{end}}
+
+{{define "now"}}
+<h2>On air</h2>
+{{if .Err}}<p class="warn">Schedule not reloaded, the last good version is on air: {{.Err}}</p>{{end}}
+{{with .Override}}<div class="override">Session override:
+  {{if .PausedUntil}}<b>paused</b> until {{.PausedUntil}}. {{end}}
+  {{if .SkipAt}}the slot at <b>{{.SkipAt}}</b> is skipped. {{end}}
+  {{if .Clock}}clock <b>{{.Clock}}</b> until {{.ClockUntil}}. {{end}}
+  <span class="muted">Ends on its own; a restart clears it.</span></div>{{end}}
+<div class="row">
+  <span class="big">{{if .Show}}{{.Show.Name}}{{else}}no show{{end}}</span>
+  <span class="muted">{{if .Show}}{{.Show.Window}} · {{end}}clock <b>{{.Clock}}</b> · {{.Now.Format "15:04"}}</span>
+  {{if .OnAir}}<span class="pill live">● on air</span>{{end}}
+  {{with .Next}}<span>next: <b>{{.Segments}}</b> at {{.At}} <span class="muted">({{.In}})</span></span>{{else}}<span class="muted">nothing airs within a day</span>{{end}}
+</div>
+<div class="timeline" title="today">
+  {{range .Timeline}}<div class="bar{{if .Current}} current{{end}}" style="left:{{.Left}}%;width:{{.Width}}%" title="{{.Window}} {{.Name}} (clock {{.Clock}})">{{.Name}}</div>{{end}}
+  <div class="nowline" style="left:{{.NowPct}}%"></div>
+</div>
+<div class="hours"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+{{if .Extras}}<p>Extras of this show:
+  {{range .Extras}}<span class="pill{{if .Unknown}} muted{{end}}" title="{{if .Unknown}}segment does not exist yet, skipped{{else if .Done}}aired or skipped this window{{else}}pending{{end}}">{{.At}} {{.Segment}}{{if .Done}} ✓{{end}}</span> {{end}}
+</p>{{end}}
+<h2 style="margin-top:14px">Clock {{.Clock}}</h2>
+{{if .Slots}}
+<div class="hourbar">{{range .Slots}}<div class="tick{{if .Unknown}} unknown{{end}}{{if .Next}} next{{end}}" style="left:{{.Pct}}%" title="{{.Minute}} {{.Segment}}"></div>{{end}}</div>
+<table>
+  <tr><th>min</th><th>segment</th><th>parameters</th></tr>
+  {{range .Slots}}<tr class="{{if .Next}}next{{else if .Past}}past{{end}}"><td>{{.Minute}}</td><td>{{if .Skipped}}<s>{{.Segment}}</s> <span class="warn">(skipped this time)</span>{{else}}{{.Segment}}{{end}}{{if .Unknown}} <span class="muted">(not built yet, skipped)</span>{{end}}</td><td class="muted">{{.Params}}</td></tr>{{end}}
+</table>
+{{else}}<p class="muted">Empty clock: silence, the panel keeps the catcher's idle screen.</p>{{end}}
+{{end}}
+
+{{define "aired"}}
+<h2>Last aired</h2>
+{{if .Aired}}<table>
+  <tr><th>time</th><th>segment</th><th>card</th></tr>
+  {{range .Aired}}<tr><td>{{.At.Format "15:04:05"}}</td><td>{{.Segment}}</td><td class="msg"><b>{{.Title}}</b><br><span class="muted">{{.Message}}</span>{{if .URL}} <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">↗</a>{{end}}{{if .Err}}<br><span class="err">{{.Err}}</span>{{end}}</td></tr>{{end}}
+</table>
+<p><a href="{{.Base}}/aired">All aired cards, search →</a></p>{{else}}<p class="muted">Nothing aired since the start.</p>{{end}}
+{{end}}
+
+{{define "sources"}}
+<h2>Sources</h2>
+{{if .Sources}}<table>
+  <tr><th>source</th><th>last query</th><th>result</th></tr>
+  {{range .Sources}}<tr><td class="nowrap">{{.Name}}</td>
+    <td>{{if .At.IsZero}}<span class="muted">not yet</span>{{else}}{{.At.Format "15:04:05"}} <span class="muted">{{.Took}}</span>{{end}}</td>
+    <td class="msg">{{if .Err}}<span class="err">{{.Err}}</span>{{else if .At.IsZero}}<span class="muted">queried when infra-facts airs</span>{{else}}<span class="ok">{{.Facts}} facts</span>{{end}}</td></tr>{{end}}
+</table>{{else}}<p class="muted">No sources configured (RADIO_SOURCES_PATH).</p>{{end}}
+{{end}}
+
+{{define "preview"}}
+{{if .Err}}<p class="err">{{.Segment}}: {{.Err}}</p>{{end}}
+{{if .Cards}}<p class="muted">{{.Segment}} {{.Params}} · {{len .Cards}} card(s) · {{.Took}}</p>
+<div class="cards">{{range .Cards}}<div class="card">
+  <div class="title{{if not .Fits}} overflow{{end}}">{{join .Lines "\n"}}</div>
+  <div class="scroll" title="scrolling line">{{.Message}}</div>
+</div>{{end}}</div>
+{{else if not .Err}}<p class="muted">{{.Segment}} has nothing to say right now.</p>{{end}}
+{{end}}
+
+{{define "fragment-on-air"}}<div class="hr-frag"><ul class="hr-list">
+<li class="hr-item"><span class="hr-time">{{.Now.Format "15:04"}}</span><span class="hr-system">show</span><span class="hr-title">{{if .Show}}{{.Show.Name}} ({{.Show.Window}}){{else}}no show{{end}} · clock {{.Clock}}</span></li>
+{{with .Next}}<li class="hr-item"><span class="hr-time">{{.At}}</span><span class="hr-system">next</span><span class="hr-title">{{.Segments}} <span class="hr-muted">{{.In}}</span></span></li>{{end}}
+{{range $i, $a := .Aired}}{{if eq $i 0}}<li class="hr-item"><span class="hr-time">{{$a.At.Format "15:04"}}</span><span class="hr-system">{{$a.Segment}}</span><span class="hr-title">{{$a.Title}}</span></li>{{end}}{{end}}
+</ul><a class="hr-frag-more" href="{{.Base}}/">Open programme →</a></div>{{end}}
+
+{{define "fragment-last-aired"}}<div class="hr-frag"><ul class="hr-list">
+{{range $i, $a := .Aired}}{{if lt $i 6}}<li class="hr-item"><span class="hr-time">{{$a.At.Format "15:04"}}</span><span class="hr-system">{{$a.Segment}}</span><span class="hr-title">{{$a.Title}}</span></li>{{end}}{{else}}<li class="hr-item hr-muted">Nothing aired yet.</li>{{end}}
+</ul><a class="hr-frag-more" href="{{.Base}}/">Open programme →</a></div>{{end}}
+
+{{define "control"}}
+<h2>Control <span class="muted" style="text-transform:none;letter-spacing:0">· for this session; the schedule itself changes by PR</span></h2>
+{{if not .LoggedIn}}
+<form hx-post="{{.Base}}/ui/login" hx-target="#control" hx-swap="innerHTML">
+  <input type="password" name="token" placeholder="RADIO_UI_TOKEN" autocomplete="current-password" required>
+  <button type="submit">Unlock</button>
+</form>
+{{else}}
+<div class="controls">
+  {{if and .Override .Override.PausedUntil}}
+  <form hx-post="{{.Base}}/ui/control/resume" hx-target="#control"><label>Paused until {{.Override.PausedUntil}}</label><button type="submit">Resume now</button></form>
+  {{else}}
+  <form hx-post="{{.Base}}/ui/control/pause" hx-target="#control"><label>Pause the station</label>
+    <select name="minutes">{{range .Durations}}<option value="{{.Minutes}}">{{.Label}}</option>{{end}}</select>
+    <button type="submit">Pause</button></form>
+  {{end}}
+  {{if and .Override .Override.SkipAt}}
+  <form hx-post="{{.Base}}/ui/control/unskip" hx-target="#control"><label>{{.Override.SkipAt}} will be skipped</label><button type="submit" class="secondary">Cancel skip</button></form>
+  {{else}}
+  <form hx-post="{{.Base}}/ui/control/skip" hx-target="#control"><label>Skip the next slot{{with .Next}} ({{.Segments}} at {{.At}}){{end}}</label><button type="submit">Skip</button></form>
+  {{end}}
+  {{if and .Override .Override.Clock}}
+  <form hx-post="{{.Base}}/ui/control/restore" hx-target="#control"><label>Clock {{.Override.Clock}} until {{.Override.ClockUntil}}</label><button type="submit" class="secondary">Back to the programme</button></form>
+  {{else}}
+  <form hx-post="{{.Base}}/ui/control/clock" hx-target="#control"><label>Switch the clock</label>
+    <select name="clock">{{range .Clocks}}<option>{{.}}</option>{{end}}</select>
+    <select name="minutes">{{range .Durations}}<option value="{{.Minutes}}">{{.Label}}</option>{{end}}</select>
+    <button type="submit">Switch</button></form>
+  {{end}}
+  <form hx-post="{{.Base}}/ui/control/air" hx-target="#control"><label>Air a segment now</label>
+    <select name="segment">{{range .Segments}}<option>{{.}}</option>{{end}}</select>
+    <input name="params" placeholder="count=1" autocomplete="off" style="min-width:80px">
+    <button type="submit">Air now</button></form>
+</div>
+<form hx-post="{{.Base}}/ui/logout" hx-target="#control" style="margin-top:8px"><button type="submit" class="secondary">Lock</button></form>
+{{end}}
+{{if .Notice}}<p class="notice {{if .NoticeErr}}err{{else}}ok{{end}}">{{.Notice}}</p>{{end}}
+{{end}}
+
+{{define "head"}}<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HOMERUN² Radio</title>
@@ -80,136 +215,31 @@
   .card .scroll { color: var(--hr-info); font-size: 12px; margin-top: 6px; border-top: 1px dashed var(--hr-border); padding-top: 4px; word-break: break-word; }
 </style>
 {{if .PortalTheme}}<link rel="stylesheet" href="/static/homerun2-tokens.css">{{end}}
-</head>
+</head>{{end}}
+
+{{define "archive"}}<!DOCTYPE html>
+<html lang="en">
+{{template "head" .}}
 <body>
 <header class="header-bar">
-  <div><h1>HOMERUN² RADIO</h1><div class="subtitle">programme of the LED matrix</div></div>
-  <div class="meta">{{.Zone}} · {{.Version}}</div>
+  <div><h1>HOMERUN² RADIO</h1><div class="subtitle">aired cards</div></div>
+  <div class="meta"><a href="{{.Base}}/" style="color:inherit">← programme</a> · {{.Zone}} · {{.Version}}</div>
 </header>
 <main>
-  <section class="wide" hx-get="{{.Base}}/ui/part/now" hx-trigger="every 15s, radio-changed from:body" hx-swap="innerHTML">{{template "now" .}}</section>
-  {{if .Controls}}<section class="wide" id="control">{{template "control" .}}</section>{{end}}
-  <section hx-get="{{.Base}}/ui/part/aired" hx-trigger="every 15s" hx-swap="innerHTML">{{template "aired" .}}</section>
-  <section hx-get="{{.Base}}/ui/part/sources" hx-trigger="every 30s" hx-swap="innerHTML">{{template "sources" .}}</section>
   <section class="wide">
-    <h2>Preview</h2>
-    <p class="muted">Builds a segment now, as the next slot would air it, without pitching it. Headlines are not marked as seen, facts not as recent. Queries the feeds, sources and, if on, the model.</p>
-    <form hx-post="{{.Base}}/ui/preview" hx-target="#preview" hx-swap="innerHTML">
-      <select name="segment">{{range .Segments}}<option>{{.}}</option>{{end}}</select>
-      <input name="params" placeholder="count=2 feeds=cncf" autocomplete="off">
-      <button type="submit">Preview</button>
+    <h2>Aired <span class="muted" style="text-transform:none;letter-spacing:0">· up to {{.Keep}} cards{{if .Started}} since the start at {{.Started}}{{end}}, newest first; a restart empties it</span></h2>
+    <form method="get" action="{{.Base}}/aired">
+      <select name="segment"><option value="">all segments</option>{{range .Segments}}<option{{if eq . $.Segment}} selected{{end}}>{{.}}</option>{{end}}</select>
+      <input name="q" value="{{.Q}}" placeholder="search title and text" autocomplete="off">
+      <button type="submit">Filter</button>
+      {{if or .Segment .Q}}<a href="{{.Base}}/aired">reset</a>{{end}}
     </form>
-    <div id="preview"></div>
+    <p class="muted">{{len .Items}} of {{.Total}} cards</p>
+    {{if .Items}}<table>
+      <tr><th>time</th><th>segment</th><th>card</th></tr>
+      {{range .Items}}<tr><td class="nowrap">{{if $.SameDay .At}}{{.At.Format "15:04:05"}}{{else}}{{.At.Format "02.01. 15:04"}}{{end}}</td><td class="nowrap">{{.Segment}}</td><td class="msg"><b>{{.Title}}</b><br><span class="muted">{{.Message}}</span>{{if .URL}} <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">↗</a>{{end}}{{if .Err}}<br><span class="err">{{.Err}}</span>{{end}}</td></tr>{{end}}
+    </table>{{else}}<p class="muted">Nothing aired{{if or .Segment .Q}} that matches{{end}}.</p>{{end}}
   </section>
 </main>
 </body>
 </html>{{end}}
-
-{{define "now"}}
-<h2>On air</h2>
-{{if .Err}}<p class="warn">Schedule not reloaded, the last good version is on air: {{.Err}}</p>{{end}}
-{{with .Override}}<div class="override">Session override:
-  {{if .PausedUntil}}<b>paused</b> until {{.PausedUntil}}. {{end}}
-  {{if .SkipAt}}the slot at <b>{{.SkipAt}}</b> is skipped. {{end}}
-  {{if .Clock}}clock <b>{{.Clock}}</b> until {{.ClockUntil}}. {{end}}
-  <span class="muted">Ends on its own; a restart clears it.</span></div>{{end}}
-<div class="row">
-  <span class="big">{{if .Show}}{{.Show.Name}}{{else}}no show{{end}}</span>
-  <span class="muted">{{if .Show}}{{.Show.Window}} · {{end}}clock <b>{{.Clock}}</b> · {{.Now.Format "15:04"}}</span>
-  {{if .OnAir}}<span class="pill live">● on air</span>{{end}}
-  {{with .Next}}<span>next: <b>{{.Segments}}</b> at {{.At}} <span class="muted">({{.In}})</span></span>{{else}}<span class="muted">nothing airs within a day</span>{{end}}
-</div>
-<div class="timeline" title="today">
-  {{range .Timeline}}<div class="bar{{if .Current}} current{{end}}" style="left:{{.Left}}%;width:{{.Width}}%" title="{{.Window}} {{.Name}} (clock {{.Clock}})">{{.Name}}</div>{{end}}
-  <div class="nowline" style="left:{{.NowPct}}%"></div>
-</div>
-<div class="hours"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
-{{if .Extras}}<p>Extras of this show:
-  {{range .Extras}}<span class="pill{{if .Unknown}} muted{{end}}" title="{{if .Unknown}}segment does not exist yet, skipped{{else if .Done}}aired or skipped this window{{else}}pending{{end}}">{{.At}} {{.Segment}}{{if .Done}} ✓{{end}}</span> {{end}}
-</p>{{end}}
-<h2 style="margin-top:14px">Clock {{.Clock}}</h2>
-{{if .Slots}}
-<div class="hourbar">{{range .Slots}}<div class="tick{{if .Unknown}} unknown{{end}}{{if .Next}} next{{end}}" style="left:{{.Pct}}%" title="{{.Minute}} {{.Segment}}"></div>{{end}}</div>
-<table>
-  <tr><th>min</th><th>segment</th><th>parameters</th></tr>
-  {{range .Slots}}<tr class="{{if .Next}}next{{else if .Past}}past{{end}}"><td>{{.Minute}}</td><td>{{if .Skipped}}<s>{{.Segment}}</s> <span class="warn">(skipped this time)</span>{{else}}{{.Segment}}{{end}}{{if .Unknown}} <span class="muted">(not built yet, skipped)</span>{{end}}</td><td class="muted">{{.Params}}</td></tr>{{end}}
-</table>
-{{else}}<p class="muted">Empty clock: silence, the panel keeps the catcher's idle screen.</p>{{end}}
-{{end}}
-
-{{define "aired"}}
-<h2>Last aired</h2>
-{{if .Aired}}<table>
-  <tr><th>time</th><th>segment</th><th>card</th></tr>
-  {{range .Aired}}<tr><td>{{.At.Format "15:04:05"}}</td><td>{{.Segment}}</td><td class="msg"><b>{{.Title}}</b><br><span class="muted">{{.Message}}</span>{{if .Err}}<br><span class="err">{{.Err}}</span>{{end}}</td></tr>{{end}}
-</table>{{else}}<p class="muted">Nothing aired since the start.</p>{{end}}
-{{end}}
-
-{{define "sources"}}
-<h2>Sources</h2>
-{{if .Sources}}<table>
-  <tr><th>source</th><th>last query</th><th>result</th></tr>
-  {{range .Sources}}<tr><td class="nowrap">{{.Name}}</td>
-    <td>{{if .At.IsZero}}<span class="muted">not yet</span>{{else}}{{.At.Format "15:04:05"}} <span class="muted">{{.Took}}</span>{{end}}</td>
-    <td class="msg">{{if .Err}}<span class="err">{{.Err}}</span>{{else if .At.IsZero}}<span class="muted">queried when infra-facts airs</span>{{else}}<span class="ok">{{.Facts}} facts</span>{{end}}</td></tr>{{end}}
-</table>{{else}}<p class="muted">No sources configured (RADIO_SOURCES_PATH).</p>{{end}}
-{{end}}
-
-{{define "preview"}}
-{{if .Err}}<p class="err">{{.Segment}}: {{.Err}}</p>{{end}}
-{{if .Cards}}<p class="muted">{{.Segment}} {{.Params}} · {{len .Cards}} card(s) · {{.Took}}</p>
-<div class="cards">{{range .Cards}}<div class="card">
-  <div class="title{{if not .Fits}} overflow{{end}}">{{join .Lines "\n"}}</div>
-  <div class="scroll" title="scrolling line">{{.Message}}</div>
-</div>{{end}}</div>
-{{else if not .Err}}<p class="muted">{{.Segment}} has nothing to say right now.</p>{{end}}
-{{end}}
-
-{{define "fragment-on-air"}}<div class="hr-frag"><ul class="hr-list">
-<li class="hr-item"><span class="hr-time">{{.Now.Format "15:04"}}</span><span class="hr-system">show</span><span class="hr-title">{{if .Show}}{{.Show.Name}} ({{.Show.Window}}){{else}}no show{{end}} · clock {{.Clock}}</span></li>
-{{with .Next}}<li class="hr-item"><span class="hr-time">{{.At}}</span><span class="hr-system">next</span><span class="hr-title">{{.Segments}} <span class="hr-muted">{{.In}}</span></span></li>{{end}}
-{{range $i, $a := .Aired}}{{if eq $i 0}}<li class="hr-item"><span class="hr-time">{{$a.At.Format "15:04"}}</span><span class="hr-system">{{$a.Segment}}</span><span class="hr-title">{{$a.Title}}</span></li>{{end}}{{end}}
-</ul><a class="hr-frag-more" href="{{.Base}}/">Open programme →</a></div>{{end}}
-
-{{define "fragment-last-aired"}}<div class="hr-frag"><ul class="hr-list">
-{{range $i, $a := .Aired}}{{if lt $i 6}}<li class="hr-item"><span class="hr-time">{{$a.At.Format "15:04"}}</span><span class="hr-system">{{$a.Segment}}</span><span class="hr-title">{{$a.Title}}</span></li>{{end}}{{else}}<li class="hr-item hr-muted">Nothing aired yet.</li>{{end}}
-</ul><a class="hr-frag-more" href="{{.Base}}/">Open programme →</a></div>{{end}}
-
-{{define "control"}}
-<h2>Control <span class="muted" style="text-transform:none;letter-spacing:0">· for this session; the schedule itself changes by PR</span></h2>
-{{if not .LoggedIn}}
-<form hx-post="{{.Base}}/ui/login" hx-target="#control" hx-swap="innerHTML">
-  <input type="password" name="token" placeholder="RADIO_UI_TOKEN" autocomplete="current-password" required>
-  <button type="submit">Unlock</button>
-</form>
-{{else}}
-<div class="controls">
-  {{if and .Override .Override.PausedUntil}}
-  <form hx-post="{{.Base}}/ui/control/resume" hx-target="#control"><label>Paused until {{.Override.PausedUntil}}</label><button type="submit">Resume now</button></form>
-  {{else}}
-  <form hx-post="{{.Base}}/ui/control/pause" hx-target="#control"><label>Pause the station</label>
-    <select name="minutes">{{range .Durations}}<option value="{{.Minutes}}">{{.Label}}</option>{{end}}</select>
-    <button type="submit">Pause</button></form>
-  {{end}}
-  {{if and .Override .Override.SkipAt}}
-  <form hx-post="{{.Base}}/ui/control/unskip" hx-target="#control"><label>{{.Override.SkipAt}} will be skipped</label><button type="submit" class="secondary">Cancel skip</button></form>
-  {{else}}
-  <form hx-post="{{.Base}}/ui/control/skip" hx-target="#control"><label>Skip the next slot{{with .Next}} ({{.Segments}} at {{.At}}){{end}}</label><button type="submit">Skip</button></form>
-  {{end}}
-  {{if and .Override .Override.Clock}}
-  <form hx-post="{{.Base}}/ui/control/restore" hx-target="#control"><label>Clock {{.Override.Clock}} until {{.Override.ClockUntil}}</label><button type="submit" class="secondary">Back to the programme</button></form>
-  {{else}}
-  <form hx-post="{{.Base}}/ui/control/clock" hx-target="#control"><label>Switch the clock</label>
-    <select name="clock">{{range .Clocks}}<option>{{.}}</option>{{end}}</select>
-    <select name="minutes">{{range .Durations}}<option value="{{.Minutes}}">{{.Label}}</option>{{end}}</select>
-    <button type="submit">Switch</button></form>
-  {{end}}
-  <form hx-post="{{.Base}}/ui/control/air" hx-target="#control"><label>Air a segment now</label>
-    <select name="segment">{{range .Segments}}<option>{{.}}</option>{{end}}</select>
-    <input name="params" placeholder="count=1" autocomplete="off" style="min-width:80px">
-    <button type="submit">Air now</button></form>
-</div>
-<form hx-post="{{.Base}}/ui/logout" hx-target="#control" style="margin-top:8px"><button type="submit" class="secondary">Lock</button></form>
-{{end}}
-{{if .Notice}}<p class="notice {{if .NoticeErr}}err{{else}}ok{{end}}">{{.Notice}}</p>{{end}}
-{{end}}

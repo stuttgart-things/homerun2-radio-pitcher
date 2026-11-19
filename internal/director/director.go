@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,12 +39,14 @@ type Aired struct {
 	Segment string
 	Title   string
 	Message string
+	URL     string
 	ID      string
 	Err     string
 }
 
-// recentMax is how many aired items Recent keeps.
-const recentMax = 30
+// DefaultArchive is how many aired items the director keeps when Archive
+// is unset.
+const DefaultArchive = 300
 
 // Observer is told about every pitched item (metrics).
 type Observer func(segment string, err error)
@@ -59,6 +62,9 @@ type Director struct {
 	// only the newest ambient card, so items pitched together would replace
 	// each other at once; space them by about a card's duration.
 	Spacing time.Duration
+	// Archive is how many aired items Recent keeps (in memory; a restart
+	// starts empty). 0 means DefaultArchive.
+	Archive int
 	Log     *slog.Logger
 	Observe Observer
 
@@ -245,7 +251,7 @@ func (d *Director) Air(ctx context.Context, name string, params schedule.Params,
 		msg := d.Message(name, it, at, tags...)
 		id, err := d.Pitcher.Pitch(ctx, msg)
 		d.observe(name, err)
-		d.record(Aired{At: at, Segment: name, Title: msg.Title, Message: msg.Message, ID: id, Err: errText(err)})
+		d.record(Aired{At: at, Segment: name, Title: msg.Title, Message: msg.Message, URL: msg.URL, ID: id, Err: errText(err)})
 		if err != nil {
 			d.logger().Error("pitch failed", "segment", name, "title", msg.Title, "error", err)
 			continue
@@ -273,6 +279,7 @@ func (d *Director) Message(seg string, it segment.Item, at time.Time, tags ...st
 		Author:    d.Station.Author,
 		Timestamp: at.Format(time.RFC3339),
 		Tags:      strings.Join(append([]string{"segment=" + seg}, tags...), ","),
+		URL:       it.URL,
 	}
 }
 
@@ -280,8 +287,12 @@ func (d *Director) record(a Aired) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.recent = append(d.recent, a)
-	if len(d.recent) > recentMax {
-		d.recent = d.recent[len(d.recent)-recentMax:]
+	limit := d.Archive
+	if limit <= 0 {
+		limit = DefaultArchive
+	}
+	if len(d.recent) > limit {
+		d.recent = slices.Clone(d.recent[len(d.recent)-limit:])
 	}
 }
 

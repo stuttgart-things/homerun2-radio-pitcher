@@ -49,6 +49,7 @@ func ParseFeeds(s string) ([]Feed, error) {
 type Headline struct {
 	Feed      string
 	ID        string // guid, id or link
+	Link      string // the article, empty when the feed gives none
 	Title     string
 	Published time.Time // zero when the feed gives none
 	// Description is the entry's text without markup, at most
@@ -79,12 +80,21 @@ type atom struct {
 		ID    string `xml:"id"`
 		Links []struct {
 			Href string `xml:"href,attr"`
+			Rel  string `xml:"rel,attr"`
 		} `xml:"link"`
 		Updated   string `xml:"updated"`
 		Published string `xml:"published"`
 		Summary   string `xml:"summary"`
 		Content   string `xml:"content"`
 	} `xml:"entry"`
+}
+
+// webLink keeps only http(s) links: the UI renders them as hrefs.
+func webLink(s string) string {
+	if strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "http://") {
+		return s
+	}
+	return ""
 }
 
 // ParseFeed reads an RSS or Atom document.
@@ -106,7 +116,7 @@ func ParseFeed(feed string, r io.Reader) ([]Headline, error) {
 		}
 		for _, it := range doc.Items {
 			id := firstNonEmpty(it.GUID, it.Link, it.Title)
-			out = append(out, Headline{Feed: feed, ID: id, Title: cleanTitle(it.Title), Published: parseDate(firstNonEmpty(it.PubDate, it.Date)),
+			out = append(out, Headline{Feed: feed, ID: id, Link: webLink(strings.TrimSpace(it.Link)), Title: cleanTitle(it.Title), Published: parseDate(firstNonEmpty(it.PubDate, it.Date)),
 				Description: cleanDescription(firstNonEmpty(it.Desc, it.Content))})
 		}
 	case "feed":
@@ -116,10 +126,16 @@ func ParseFeed(feed string, r io.Reader) ([]Headline, error) {
 		}
 		for _, e := range doc.Entries {
 			link := ""
-			if len(e.Links) > 0 {
-				link = e.Links[0].Href
+			for _, l := range e.Links {
+				if l.Rel == "" || l.Rel == "alternate" {
+					link = strings.TrimSpace(l.Href)
+					break
+				}
 			}
-			out = append(out, Headline{Feed: feed, ID: firstNonEmpty(e.ID, link, e.Title), Title: cleanTitle(e.Title), Published: parseDate(firstNonEmpty(e.Published, e.Updated)),
+			if link == "" && len(e.Links) > 0 {
+				link = strings.TrimSpace(e.Links[0].Href)
+			}
+			out = append(out, Headline{Feed: feed, ID: firstNonEmpty(e.ID, link, e.Title), Link: webLink(link), Title: cleanTitle(e.Title), Published: parseDate(firstNonEmpty(e.Published, e.Updated)),
 				Description: cleanDescription(firstNonEmpty(e.Summary, e.Content))})
 		}
 	default:
