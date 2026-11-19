@@ -381,3 +381,51 @@ func TestNewsSkipsBlockWords(t *testing.T) {
 		t.Fatalf("empty list: %+v", items)
 	}
 }
+
+func TestInfraFactsCombine(t *testing.T) {
+	dev := fakeSource{name: "dev", facts: []sources.Fact{
+		{ID: "dev/pods", Source: "dev", Title: "312 pods on dev", Message: "dev: 312 pods, 298 of them running"},
+		{ID: "dev/nodes", Source: "dev", Title: "dev: 3 nodes", Message: "dev: 3 of 3 nodes ready"},
+	}}
+	combine := schedule.Params{"count": 2, "combine": true}
+
+	// the model keeps every number and the source: one card
+	s := infraSegment(dev)
+	s.Moderator = &moderation.Moderator{Client: answer("dev runs 312 pods, 298 of them running, on 3 of 3 nodes ready.")}
+	items, err := s.Build(context.Background(), now, combine)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("combined: %+v, %v", items, err)
+	}
+	if items[0].Title != "dev" || items[0].Message != "dev runs 312 pods, 298 of them running, on 3 of 3 nodes ready." {
+		t.Errorf("combined card %+v", items[0])
+	}
+
+	// a dropped number, an added one, a total, a dropped name, no model:
+	// the facts air one by one, as without combine
+	for _, a := range []string{
+		"dev runs 312 pods on 3 nodes.",                            // 298 and one 3 dropped
+		"dev runs 312 pods, 298 running, 14 not, on 3 of 3 nodes.", // 14 is new
+		"dev: 312 pods, 298 of them running, 3 of 3 nodes ready, 318 in all.",
+		"The cluster runs 312 pods, 298 of them running, on 3 of 3 nodes ready.",
+	} {
+		s := infraSegment(dev)
+		s.Moderator = &moderation.Moderator{Client: answer(a)}
+		if items, _ := s.Build(context.Background(), now, combine); len(items) != 2 {
+			t.Errorf("answer %q: %+v", a, items)
+		}
+	}
+	if items, _ := infraSegment(dev).Build(context.Background(), now, combine); len(items) != 2 {
+		t.Errorf("no model: %+v", items)
+	}
+
+	// facts of two sources: a neutral title, both names kept
+	two := []sources.Source{dev, fakeSource{name: "harvester", facts: []sources.Fact{
+		{ID: "hv/vms", Source: "harvester", Title: "harvester: 12 VMs", Message: "harvester: 12 VMs"},
+	}}}
+	s = infraSegment(two...)
+	s.Moderator = &moderation.Moderator{Client: answer("dev runs 312 pods, 298 of them running, on 3 of 3 nodes ready, and harvester has 12 VMs.")}
+	items, _ = s.Build(context.Background(), now, schedule.Params{"count": 3, "combine": true})
+	if len(items) != 1 || items[0].Title != "Infra facts" {
+		t.Errorf("two sources: %+v", items)
+	}
+}
