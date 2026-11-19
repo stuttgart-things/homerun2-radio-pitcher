@@ -1,3 +1,15 @@
+# [0.18.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.17.0...v0.18.0) (2026-11-19)
+
+
+### Bug Fixes
+
+* release notes drop cross-repo closes references ([234e28f](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/234e28f4346dd2123d806810f78fa16c28ab9287)), closes [#62](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/62)
+
+
+### Features
+
+* spots segment airs short cards from spots.yaml ([e201bde](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/e201bde50dc2c5c1d6f0fa9ec4f425c78ad035bf)), closes [#27](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/27)
+
 # [0.17.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.16.0...v0.17.0) (2026-11-19)
 
 
