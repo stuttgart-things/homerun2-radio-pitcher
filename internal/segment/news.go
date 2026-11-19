@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -34,10 +36,43 @@ type News struct {
 	// MaxAge skips headlines older than this; 0 keeps all. Headlines
 	// without a date are kept.
 	MaxAge time.Duration
-	Log    *slog.Logger
+	// BlockWords skips a headline that has one of these words, matched at
+	// the start of a word and case-insensitive ("fuck" also catches
+	// "fucking", but "cunt" not "Scunthorpe"). nil: DefaultBlockWords.
+	BlockWords []string
+	Log        *slog.Logger
 
-	mu   sync.Mutex
-	seen map[string]time.Time // headline key -> when aired
+	mu      sync.Mutex
+	seen    map[string]time.Time // headline key -> when aired
+	blockRE *regexp.Regexp
+	blockOK bool // blockRE built
+}
+
+// DefaultBlockWords keep swear words off the office display.
+var DefaultBlockWords = []string{
+	"shit", "bullshit", "fuck", "motherfuck", "cunt", "bitch", "asshole",
+	"dickhead", "wanker", "bollocks", "piss", "bastard", "crap",
+}
+
+// blocked reports whether title has a block word. Called with n.mu held.
+func (n *News) blocked(title string) bool {
+	if !n.blockOK {
+		n.blockOK = true
+		words := n.BlockWords
+		if words == nil {
+			words = DefaultBlockWords
+		}
+		var alts []string
+		for _, w := range words {
+			if w = strings.TrimSpace(w); w != "" {
+				alts = append(alts, regexp.QuoteMeta(w))
+			}
+		}
+		if len(alts) > 0 {
+			n.blockRE = regexp.MustCompile(`(?i)\b(?:` + strings.Join(alts, "|") + `)`)
+		}
+	}
+	return n.blockRE != nil && n.blockRE.MatchString(title)
 }
 
 func (n *News) Name() string { return "news" }
@@ -105,6 +140,10 @@ func (n *News) Build(ctx context.Context, now time.Time, p schedule.Params) ([]I
 		}
 		key := h.Feed + "\x00" + h.ID
 		if _, ok := n.seen[key]; ok {
+			continue
+		}
+		if n.blocked(h.Title) {
+			n.logger().Debug("headline skipped, block word", "feed", h.Feed, "title", h.Title)
 			continue
 		}
 		if !IsPreview(ctx) {

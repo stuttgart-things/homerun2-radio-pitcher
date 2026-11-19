@@ -68,3 +68,23 @@ func TestParseBasePath(t *testing.T) {
 		}
 	}
 }
+
+func TestNewsBlockWords(t *testing.T) {
+	for v, want := range map[string][]string{
+		"":                 nil,
+		"none":             {},
+		" Crap , DARN ,, ": {"crap", "darn"},
+	} {
+		env := map[string]string{}
+		if v != "" {
+			env["RADIO_NEWS_BLOCK_WORDS"] = v
+		}
+		c, err := Load(getenv(env))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (c.NewsBlockWords == nil) != (want == nil) || strings.Join(c.NewsBlockWords, ",") != strings.Join(want, ",") {
+			t.Errorf("%q: %#v, want %#v", v, c.NewsBlockWords, want)
+		}
+	}
+}

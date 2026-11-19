@@ -180,6 +180,7 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 			Title:      cfg.Title,
 			MessageMax: cfg.MessageMax,
 			SeenFor:    cfg.NewsSeenFor,
+			BlockWords: cfg.NewsBlockWords,
 			MaxAge:     cfg.NewsMaxAge,
 		},
 		&segment.InfraFacts{
