@@ -1,3 +1,10 @@
+# [0.13.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.12.0...v0.13.0) (2026-11-19)
+
+
+### Features
+
+* infra-facts joins a slot's facts into one sentence ([d586d57](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/d586d57f97eaf906d4fd653e288654abbcb059e8)), closes [#46](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/46)
+
 # [0.12.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.11.1...v0.12.0) (2026-11-19)
 
 
