@@ -82,6 +82,7 @@ func (r *Releases) Build(ctx context.Context, now time.Time, p schedule.Params) 
 		items = append(items, Item{
 			Title:   r.Title.Fit("Released: " + rel.Repo + " " + rel.Tag),
 			Message: panel.Truncate(msg, r.MessageMax),
+			URL:     rel.URL,
 		})
 	}
 	return items, nil

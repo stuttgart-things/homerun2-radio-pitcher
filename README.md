@@ -36,7 +36,7 @@ Each programme item is one homerun2 message. The led-catcher renders it as a
 | `title` | short and fitted to the card: by default 4 lines of 16 characters (the catcher's 4x6 font), shortened at a word boundary with `…` |
 | `message` | the scrolling line, at most 120 characters (`RADIO_MESSAGE_MAX`) |
 | `tags` | `segment=<name>`, e.g. `segment=news`, then the slot's `card-tags` (e.g. `segment=news,show=news`). A catcher rule can filter on them with `tags: [segment=news]` |
-| `url` | the article of a news card (the feed's link); empty for the other segments |
+| `url` | the article of a news card (the feed's link), the release page of a releases card; empty for the other segments |
 | `author` | `radio` (`RADIO_AUTHOR`), the card's footer |
 | `timestamp` | when the item was pitched, RFC 3339 |
 
