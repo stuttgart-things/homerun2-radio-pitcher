@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 	// Embedded zone data: the static base image has no tzdata.
@@ -53,11 +52,7 @@ Configuration comes from the environment, see the README.
 
 func main() {
 	config.SetupLogging()
-	args := os.Args[1:]
-	cmd := "serve"
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		cmd, args = args[0], args[1:]
-	}
+	cmd, args := command(os.Args[1:])
 	var err error
 	switch cmd {
 	case "serve":
@@ -68,7 +63,7 @@ func main() {
 		err = validate()
 	case "version":
 		fmt.Printf("homerun2-radio-pitcher %s (%s, %s)\n", version, commit, date)
-	case "help", "-h", "--help":
+	case "help":
 		fmt.Print(usage)
 	default:
 		fmt.Fprint(os.Stderr, usage)
@@ -78,6 +73,21 @@ func main() {
 		slog.Error("exit", "error", err)
 		os.Exit(1)
 	}
+}
+
+// command splits the arguments into the command and its own arguments.
+// Without arguments it is serve. A leading flag is never serve: -h and
+// --help ask for the usage, and any other flag is not a command (serve
+// takes none), so a mistyped flag cannot start a second director (#39).
+func command(args []string) (string, []string) {
+	if len(args) == 0 {
+		return "serve", nil
+	}
+	switch args[0] {
+	case "-h", "-help", "--help":
+		return "help", nil
+	}
+	return args[0], args[1:]
 }
 
 // station wires the configuration into a director.
