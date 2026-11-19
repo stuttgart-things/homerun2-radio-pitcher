@@ -1,3 +1,10 @@
+# [0.10.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.9.0...v0.10.0) (2026-11-19)
+
+
+### Features
+
+* did-you-know skips deprecated entries and name-only descriptions ([7c610b9](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/7c610b9d03d5bf769de42acdc44e664e2c0522a4)), closes [#32](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/32)
+
 # [0.9.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.8.1...v0.9.0) (2026-11-18)
 
 
