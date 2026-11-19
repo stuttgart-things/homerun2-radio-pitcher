@@ -125,6 +125,7 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 
 	var srcs []sources.Source
 	var tracked []*sources.Tracked
+	var rolling []sources.RolloutSource
 	if cfg.SourcesPath != "" {
 		cfgs, err := sources.LoadConfig(cfg.SourcesPath)
 		if err != nil {
@@ -136,6 +137,9 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 		tracked = sources.Track(built)
 		for _, t := range tracked {
 			srcs = append(srcs, t)
+			if r, ok := t.Source.(sources.RolloutSource); ok {
+				rolling = append(rolling, r)
+			}
 		}
 		for _, e := range errs {
 			log.Warn("source left out", "error", e)
@@ -213,6 +217,12 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 			MessageMax: cfg.MessageMax,
 			Timeout:    cfg.SourceTimeout,
 			SeenFor:    cfg.DidYouKnowSeenFor,
+		},
+		&segment.Rollouts{
+			Sources:    rolling,
+			Title:      cfg.Title,
+			MessageMax: cfg.MessageMax,
+			Timeout:    cfg.SourceTimeout,
 		},
 	).WithIntros(&segment.Host{Moderator: mod, Title: cfg.Title, MessageMax: cfg.MessageMax})
 
@@ -354,7 +364,7 @@ func validate() error {
 	if err != nil {
 		return err
 	}
-	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{}, &segment.TabletennisStats{}, &segment.DidYouKnow{})
+	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{}, &segment.TabletennisStats{}, &segment.DidYouKnow{}, &segment.Rollouts{})
 	for _, u := range s.Unknown(known.Has) {
 		slog.Warn("unknown segment, will be skipped", "slot", u, "known", known.Names())
 	}

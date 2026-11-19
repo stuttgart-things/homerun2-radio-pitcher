@@ -170,6 +170,7 @@ The full examples are [`examples/schedule.yaml`](examples/schedule.yaml) and
 | `daily-summary` | `window` (`hourly`, `daily`, `weekly`; default `daily`), `count` (3), `tags` (names) | the balance of the window from [homerun2-scout](https://github.com/stuttgart-things/homerun2-scout) (`RADIO_SCOUT_URL`), in this order: `24h: 312 msgs, 3 err` / `In the last 24 h: 312 messages, 3 errors, 0 critical (before: 290)`; per tag `24h: 4 release` / `In the last 24 h: 4 messages tagged release`; then scout's top system: `Most alerts: flux` / `In the last 24 h: flux raised the most alerts, 162 of its 162 messages` when it raised any (scout ranks by alerts first and returns only a few systems, so the busiest by messages may be missing), else `Busiest: kubernetes` / `In the last 24 h: kubernetes sent 120 messages`. Scout's windows are rolling (the last 24 h, not since midnight), and the cards say so; when retention has dropped part of the window, "at least" and no comparison. The station's own cards are in scout's index too: set `DIGEST_EXCLUDE_SYSTEMS=radio` (or `RADIO_SYSTEM`) on scout so the counts leave them out; the segment never names its own system |
 | `tabletennis-stats` | `days` (1–366, default 7), `count` (3) | the office's table tennis from [schmetterpause](https://github.com/stuttgart-things/schmetterpause)'s `GET /api/statistics` (`RADIO_SCHMETTERPAUSE_URL`, its ADR-0032), confirmed matches only, in this order: `7d: 12 matches` / `Table tennis in the last 7 days: 12 matches, 30 sets, 612 points`; `Longest set 14:12`; `Most wins: Cem` / `… Cem, 5 won and 1 lost` (a tie of two names both, a wider tie nobody); `7d: 4 deuce sets` / `… 4 sets went to deuce and 2 matches ended without a set lost`. When schmetterpause's match cap cut into the window: `7d: 200+ matches` / `… at least 200 matches …`, aired as is (never reworded), and the other cards name the matches they cover (`Most wins in the last 200 matches: …`) instead of the window. Nothing played: nothing airs. Ordinary ambient cards, never a held score, so the panel stays free |
 | `did-you-know` | `count` (1), `kinds` (catalog kinds, default `component`, `system`, `api`, `resource`), `types` (`spec.type`, e.g. `service`, `website`; default any) | a random entry of the [Backstage](https://backstage.io) catalog (`RADIO_BACKSTAGE_URL`) whose description says more than its name, never a `deprecated` one (`spec.lifecycle`): `Did you know? homerun2-scout` / `homerun2-scout: Analytics for homerun2 messages`. With moderation, one casual sentence that must keep the entry's name and add no number; else the fixed text. An aired entry is not repeated within `RADIO_DID_YOU_KNOW_SEEN_FOR` |
+| `rollouts` | `count` (1), `within` (Go duration, default `6h`), `namespaces` (default all), `kinds` (`deployment`, `statefulset`, `daemonset`, `helmrelease`; default all) | what was deployed lately in the clusters of `sources.yaml`: a `kubernetes` source gives Deployments (newest ReplicaSet), StatefulSets and DaemonSets (newest ControllerRevision) whose current revision is younger than `within`, with the first container's image tag: `Deployed: homerun2-radio-pitcher v0.15.0` / `labul: homerun2-radio-pitcher v0.15.0 rolled out in homerun2 at 14:54` (`deployed` for a first revision); a `flux` source gives HelmReleases whose current Helm revision is that young: `labul: Helm release cert-manager upgraded to chart v1.15.0 in cert-manager at 14:30`. Rollouts of one namespace within 10 minutes share a card: `Deployed: 7 in argocd` / `labul: 7 rollouts in argocd at 12:15: argocd-server v3.6.2, …`. Newest first, each rollout airs once (kept 48 h). Fixed texts, never reworded |
 
 A segment with nothing to say (every headline seen, every source down) airs
 nothing, and the panel keeps its idle clock.
@@ -280,6 +281,7 @@ no write.
 | Type | apiGroups | resources | verbs |
 |---|---|---|---|
 | `kubernetes` | `""` | `pods`, `nodes`, `namespaces` (only those in `facts`) | `list` |
+| `kubernetes` (rollouts) | `apps` | `replicasets`, `controllerrevisions` | `list` |
 | `flux` | `kustomize.toolkit.fluxcd.io`, `helm.toolkit.fluxcd.io` | `kustomizations`, `helmreleases` | `list` |
 | `harvester` | `kubevirt.io` | `virtualmachines` | `list` |
 
@@ -290,13 +292,17 @@ metadata:
   name: homerun2-radio-reader
 rules:
   - { apiGroups: [""], resources: [pods, nodes, namespaces], verbs: [list] }
+  - { apiGroups: [apps], resources: [replicasets, controllerrevisions], verbs: [list] }
   - { apiGroups: [kustomize.toolkit.fluxcd.io], resources: [kustomizations], verbs: [list] }
   - { apiGroups: [helm.toolkit.fluxcd.io], resources: [helmreleases], verbs: [list] }
   - { apiGroups: [kubevirt.io], resources: [virtualmachines], verbs: [list] }
 ```
 
 Bind it to the identity in each kubeconfig, for example a ServiceAccount
-token. For sources without a kubeconfig (in-cluster), the KCL option
+token. ReplicaSets and ControllerRevisions carry the pod template, so the
+reader sees literal `env` values of workloads (not Secrets); the radio only
+reads the image. Without that rule the `rollouts` segment reports the
+forbidden list and stays silent for that source. For sources without a kubeconfig (in-cluster), the KCL option
 `config.inClusterReadAccess: true` renders this ClusterRole and binds it to
 the pitcher's ServiceAccount.
 
