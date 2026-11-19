@@ -36,11 +36,12 @@ var Pitched = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Help: "Programme items by segment and result (pitched, error).",
 }, []string{"segment", "result"})
 
-// Moderated counts the model's answers by kind (headline, fact, blurb) and
+// Moderated counts the model's answers by kind (headline, fact, blurb,
+// intro, time) and
 // result (moderation.Result*): used, or why the fixed text aired instead.
 var Moderated = prometheus.NewCounterVec(prometheus.CounterOpts{
 	Name: "homerun2_radio_moderation_total",
-	Help: "Model calls by kind and result (used, rejected_number, rejected_name, rejected_length, rejected_empty, error).",
+	Help: "Model calls by kind and result (used, rejected_number, rejected_name, rejected_length, rejected_empty, rejected_echo, error).",
 }, []string{"kind", "result"})
 
 func init() { prometheus.MustRegister(Pitched, Moderated) }

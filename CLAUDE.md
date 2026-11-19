@@ -37,11 +37,13 @@ on a free panel. Concept: stuttgart-things/homerun-library#146.
   (homerun2-scout digest, `internal/scout`), `tabletennis-stats`
   (schmetterpause `/api/statistics`, `internal/schmetterpause`),
   `did-you-know` (Backstage catalog, `internal/backstage`, seen-store),
-  `infra-facts` (random pick, avoids recent)
+  `infra-facts` (random pick, avoids recent); `intro.go`: `Host` and
+  `Registry.WithIntros` (slot param `intro: true`)
 - `internal/sources`: `Source` interface, `sources.yaml`; `Kubernetes`
   (typed client), `Flux` and `Harvester` (dynamic client)
 - `internal/moderation`: `Ollama` (OpenAI-compatible or native API),
-  `Moderator` with checks and fallback
+  `Moderator` with checks and fallback, `Observe` → metric
+  `homerun2_radio_moderation_total{kind,result}`
 - `internal/panel`: card title fitting (word wrap like the catcher)
 - `internal/pitcher`: `Redis` (homerun-library `Pitcher.Enqueue` with the
   stream override), `Writer` (dry run)

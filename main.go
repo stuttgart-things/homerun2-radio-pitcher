@@ -162,7 +162,7 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 	}
 
 	segs := segment.NewRegistry(
-		segment.TimeCheck{},
+		segment.TimeCheck{Moderator: mod, MessageMax: cfg.MessageMax},
 		&segment.News{
 			Feeds:      feeds,
 			Fetch:      segment.HTTPFetcher(&http.Client{Timeout: cfg.NewsTimeout}),
@@ -203,7 +203,7 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 			Timeout:    cfg.SourceTimeout,
 			SeenFor:    cfg.DidYouKnowSeenFor,
 		},
-	)
+	).WithIntros(&segment.Host{Moderator: mod, Title: cfg.Title, MessageMax: cfg.MessageMax})
 
 	var p pitcher.Pitcher
 	if dryRun {
