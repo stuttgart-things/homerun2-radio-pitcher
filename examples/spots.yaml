@@ -1,0 +1,48 @@
+# spots.yaml: the pool of the spots segment (RADIO_SPOTS_PATH), short cards
+# between the programme's slots, like a radio's commercial breaks. Lives in
+# git and is changed by PR; the pitcher reads it at start (the Reloader
+# restarts it when the ConfigMap changes).
+#
+# Every spot needs a unique id. Fixed texts, never reworded and never cut:
+# a scrolling line longer than RADIO_MESSAGE_MAX (120) fails validation.
+#
+#   kind: text (default)  title, optional message (else the title scrolls)
+#   kind: quote           text and author; the card is "Quote: <author>"
+#                         and the scrolling line “<text>” <author>
+#   weight     how often it comes up against the others (default 1, 0 off)
+#   weekdays   [mon, tue, wed, thu, fri, sat, sun]; empty: every day
+#   between    "11:00-12:00" (end exclusive, may cross midnight)
+#   from/until "2026-11-20", both inclusive
+#
+# The segment picks among the spots active now by weight and does not
+# repeat the last 3 it aired.
+spots:
+  - id: lunch
+    title: "Lunch at 12"
+    message: "Time for a break: lunch at 12 in the canteen"
+    weekdays: [mon, tue, wed, thu, fri]
+    between: "11:00-12:00"
+  - id: portal
+    title: "homerun2 portal"
+    message: "Everything the matrix shows, and more: open the homerun2 portal"
+  - id: table-tennis
+    title: "Table tennis?"
+    message: "The table is free more often than you think. Results go to schmetterpause"
+    between: "12:00-17:00"
+  - id: quote-knuth
+    kind: quote
+    text: "Premature optimization is the root of all evil."
+    author: Donald Knuth
+  - id: quote-kernighan
+    kind: quote
+    text: "Debugging is twice as hard as writing the code in the first place."
+    author: Brian Kernighan
+  - id: quote-hopper
+    kind: quote
+    text: "The most dangerous phrase in the language is: we've always done it this way."
+    author: Grace Hopper
+  - id: friday
+    title: "Friday!"
+    message: "No deploys after 15:00 on a Friday. Probably."
+    weekdays: [fri]
+    weight: 2

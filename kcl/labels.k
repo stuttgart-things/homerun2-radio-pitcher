@@ -18,6 +18,7 @@ _opts = {
     redisPasswordSecretKey = option("config.redisPasswordSecretKey")
     scheduleYaml = option("config.scheduleYaml")
     sourcesYaml = option("config.sourcesYaml")
+    spotsYaml = option("config.spotsYaml")
     kubeconfigSecret = option("config.kubeconfigSecret")
     timezone = option("config.timezone")
     basePath = option("config.basePath")
@@ -76,6 +77,8 @@ config: schema.RadioPitcher = schema.RadioPitcher {
     scheduleYaml = _opts.scheduleYaml or ""
     if _opts.sourcesYaml:
         sourcesYaml = _opts.sourcesYaml
+    if _opts.spotsYaml:
+        spotsYaml = _opts.spotsYaml
     if _opts.kubeconfigSecret:
         kubeconfigSecret = _opts.kubeconfigSecret
     if _opts.timezone:

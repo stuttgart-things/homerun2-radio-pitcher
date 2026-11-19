@@ -154,12 +154,13 @@ is not an error, so the schedule can be written ahead of the code.
 Check a schedule before you merge it:
 
 ```bash
-RADIO_SCHEDULE_PATH=schedule.yaml RADIO_SOURCES_PATH=sources.yaml homerun2-radio-pitcher validate
+RADIO_SCHEDULE_PATH=schedule.yaml RADIO_SOURCES_PATH=sources.yaml RADIO_SPOTS_PATH=spots.yaml homerun2-radio-pitcher validate
 task validate-schedule SCHEDULE=examples/schedule.yaml
 ```
 
-The full examples are [`examples/schedule.yaml`](examples/schedule.yaml) and
-[`examples/sources.yaml`](examples/sources.yaml).
+The full examples are [`examples/schedule.yaml`](examples/schedule.yaml),
+[`examples/sources.yaml`](examples/sources.yaml) and
+[`examples/spots.yaml`](examples/spots.yaml).
 
 ## Segments
 
@@ -173,6 +174,7 @@ The full examples are [`examples/schedule.yaml`](examples/schedule.yaml) and
 | `did-you-know` | `count` (1), `kinds` (catalog kinds, default `component`, `system`, `api`, `resource`), `types` (`spec.type`, e.g. `service`, `website`; default any) | a random entry of the [Backstage](https://backstage.io) catalog (`RADIO_BACKSTAGE_URL`) whose description says more than its name, never a `deprecated` one (`spec.lifecycle`): `Did you know? homerun2-scout` / `homerun2-scout: Analytics for homerun2 messages`. With moderation, one casual sentence that must keep the entry's name and add no number; else the fixed text. An aired entry is not repeated within `RADIO_DID_YOU_KNOW_SEEN_FOR` |
 | `rollouts` | `count` (1), `within` (Go duration, default `6h`), `namespaces` (default all), `kinds` (`deployment`, `statefulset`, `daemonset`, `helmrelease`; default all) | what was deployed lately in the clusters of `sources.yaml`: a `kubernetes` source gives Deployments (newest ReplicaSet), StatefulSets and DaemonSets (newest ControllerRevision) whose current revision is younger than `within`, with the first container's image tag: `Deployed: homerun2-radio-pitcher v0.15.0` / `labul: homerun2-radio-pitcher v0.15.0 rolled out in homerun2 at 14:54` (`deployed` for a first revision); a `flux` source gives HelmReleases whose current Helm revision is that young: `labul: Helm release cert-manager upgraded to chart v1.15.0 in cert-manager at 14:30`. Rollouts of one namespace within 10 minutes share a card: `Deployed: 7 in argocd` / `labul: 7 rollouts in argocd at 12:15: argocd-server v3.6.2, …`. Newest first, each rollout airs once (kept 48 h). Fixed texts, never reworded |
 | `releases` | `count` (1), `within` (Go duration, default `24h`), `repos` (names without the org; default all) | the releases `RADIO_RELEASES_ORG` published lately, from the org's public GitHub events (one request, cached 10 min; no drafts, no prereleases), newest first, each once (kept 72 h): `Released: homerun2-radio-pitcher v0.15.0` / `homerun2-radio-pitcher v0.15.0: news mix lets the feeds take turns` (the first entry of the release notes as plain text; without one `stuttgart-things released argocd v0.119.0 at 13:00`). Fixed texts. Releases of other projects (Flux, Kubernetes, …) need no code: put `https://github.com/<owner>/<repo>/releases.atom` into `RADIO_NEWS_FEEDS` |
+| `spots` | `count` (1), `kinds` (`text`, `quote`; default both), `ids` (only these) | short cards from the pool in [`spots.yaml`](examples/spots.yaml) (`RADIO_SPOTS_PATH`), like a radio's commercial breaks: a weighted random pick among the spots active now (`weekdays`, `between`, `from`/`until`), never one of the last 3 aired while others are active. A text spot is its `title` and `message` (`Lunch at 12` / `Time for a break: …`), a quote `Quote: Donald Knuth` / `“Premature optimization is the root of all evil.” Donald Knuth`. Fixed texts, never reworded or cut: validation fails on a line longer than `RADIO_MESSAGE_MAX` |
 
 A segment with nothing to say (every headline seen, every source down) airs
 nothing, and the panel keeps its idle clock.
@@ -359,6 +361,7 @@ failed call airs the fixed text.
 | `RADIO_SEVERITY` | `INFO` | message `severity` |
 | `RADIO_AUTHOR` | `radio` | message `author` |
 | `RADIO_ITEM_SPACING` | `15s` | pause between the items of one slot |
+| `RADIO_SPOTS_PATH` | | `spots.yaml`, the pool of the `spots` segment; empty: spots slots stay silent. Read at start; `validate` checks it |
 | `RADIO_ARCHIVE_SIZE` | `300` | how many aired cards the UI's archive keeps (in memory) |
 | `RADIO_TITLE_LINES` / `RADIO_TITLE_WIDTH` | `4` / `16` | title space; `3` / `12` keeps titles in the catcher's larger 5x7 font |
 | `RADIO_MESSAGE_MAX` | `120` | scrolling line, characters |
