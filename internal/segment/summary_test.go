@@ -57,7 +57,7 @@ func TestDailySummary(t *testing.T) {
 	want := []string{
 		"24h: 312 msgs, 3 err | In the last 24 h: 312 messages, 3 errors, 0 critical (before: 290)",
 		"24h: 4 release | In the last 24 h: 4 messages tagged release",
-		"Busiest: kubernetes | In the last 24 h: kubernetes sent 120 messages, 2 of them alerts",
+		"Most alerts: kubernetes | In the last 24 h: kubernetes raised the most alerts, 2 of its 120 messages",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("items:\n%s", strings.Join(got, "\n"))
@@ -78,8 +78,25 @@ func TestDailySummarySkipsOwnSystem(t *testing.T) {
 	s := summarySegment(&fakeScout{report: r})
 	s.Own = "radio"
 	items, _ := s.Build(context.Background(), now, nil)
-	if last := items[len(items)-1]; last.Title != "Busiest: kubernetes" {
-		t.Fatalf("busiest = %+v", last)
+	if last := items[len(items)-1]; last.Title != "Most alerts: kubernetes" {
+		t.Fatalf("top system = %+v", last)
+	}
+}
+
+// Scout ranks by alerts first: a quiet system with no alerts may be the
+// busiest by far but come second. Without any alerts the order is by
+// messages, and "Busiest" is right (#38).
+func TestDailySummaryTopSystemTitle(t *testing.T) {
+	r := dayReport()
+	r.Current.TopSystems = []scout.SystemCount{{System: "flux", Count: 162, Alerts: 162}, {System: "tabletennis", Count: 6730}}
+	items, _ := summarySegment(&fakeScout{report: r}).Build(context.Background(), now, nil)
+	if last := items[len(items)-1]; last.Title != "Most alerts: flux" || last.Message != "In the last 24 h: flux raised the most alerts, 162 of its 162 messages" {
+		t.Fatalf("with alerts: %+v", last)
+	}
+	r.Current.TopSystems = []scout.SystemCount{{System: "tabletennis", Count: 6730}, {System: "flux", Count: 162}}
+	items, _ = summarySegment(&fakeScout{report: r}).Build(context.Background(), now, nil)
+	if last := items[len(items)-1]; last.Title != "Busiest: tabletennis" || last.Message != "In the last 24 h: tabletennis sent 6730 messages" {
+		t.Fatalf("without alerts: %+v", last)
 	}
 }
 
