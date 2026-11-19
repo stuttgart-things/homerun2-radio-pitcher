@@ -20,8 +20,8 @@ type Moderator struct {
 	Timeout time.Duration // per call; 0 means 20s
 	Log     *slog.Logger
 	// Observe, when set, is told the outcome of every model call: kind
-	// (headline, fact, facts, blurb, intro, time) and one of the Result*
-	// values.
+	// (headline, summary, fact, facts, blurb, intro, time) and one of the
+	// Result* values.
 	Observe func(kind, result string)
 }
 
@@ -108,6 +108,47 @@ You turn a time check into one short, casual English line. Rules:
 - Keep the time and the weekday exactly as they are.
 - Use only the numbers in the template, written exactly as they are, as digits. Never spell a number out. No other numbers.
 - Do not invent events, weather or news.`
+
+const summarySystem = `You are the host of an office radio that plays on a 64x64 LED matrix.
+You sum up a news item in one short English sentence. Rules:
+- Answer with the sentence only: one line, no quotes.
+- Use only what the headline and the description say. Do not invent anything.
+- Use only numbers that are in the headline or the description, written exactly as they are, as digits. Never spell a number out.
+- If the description says nothing about the content (only links, points or comment counts), answer SKIP.`
+
+// errSkip is the model's way to say there is nothing to sum up.
+var errSkip = fmt.Errorf("%w: model answered SKIP", errEmpty)
+
+// Summary sums up a news item (headline and its feed description) in one
+// sentence of at most maxLen characters. Numbers only from headline and
+// description; a SKIP answer (nothing to sum up) counts as rejected_empty.
+// ok is false without a model or when a check fails; the caller then airs
+// the headline.
+func (m *Moderator) Summary(ctx context.Context, headline, description string, maxLen int) (line string, ok bool) {
+	headline, description = panel.Clean(headline), panel.Clean(description)
+	if m == nil || m.Client == nil || description == "" {
+		return "", false
+	}
+	user := "Headline: " + headline + "\nDescription: " + description
+	if maxLen > 0 {
+		user = fmt.Sprintf("At most %d characters.\n%s", maxLen, user)
+	}
+	out, err := m.ask(ctx, summarySystem, user, headline+" "+description)
+	if err == nil && strings.EqualFold(strings.Trim(out, " ."), "skip") {
+		err = errSkip
+	}
+	if err == nil && maxLen > 0 && utf8.RuneCountInString(out) > maxLen {
+		err = fmt.Errorf("%w: answer longer than %d characters", errLength, maxLen)
+	}
+	if err == nil && strings.EqualFold(out, headline) {
+		err = errEcho
+	}
+	m.done("summary", err)
+	if err != nil {
+		return "", false
+	}
+	return out, true
+}
 
 const combineSystem = `You are the host of an office radio that plays on a 64x64 LED matrix.
 You join several infrastructure facts into one short, casual English sentence. Rules:

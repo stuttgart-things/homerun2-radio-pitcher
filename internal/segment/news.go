@@ -23,7 +23,10 @@ type FeedFetcher func(ctx context.Context, f Feed) ([]Headline, error)
 
 // News airs the newest unseen headlines of the configured feeds.
 //
-// Parameters: count (default 1), feeds (names, default all).
+// Parameters: count (default 1), feeds (names, default all), summary
+// (default false): with moderation, the scrolling line is "<feed>: <one
+// sentence>" summed up from the feed's description, numbers only from the
+// headline and the description; else "<feed>: <headline>".
 type News struct {
 	Feeds     []Feed
 	Fetch     FeedFetcher
@@ -149,9 +152,15 @@ func (n *News) Build(ctx context.Context, now time.Time, p schedule.Params) ([]I
 		if !IsPreview(ctx) {
 			n.seen[key] = now
 		}
+		msg := h.Feed + ": " + h.Title
+		if p.Bool("summary") {
+			if line, ok := n.Moderator.Summary(ctx, h.Title, h.Description, n.MessageMax-len([]rune(h.Feed))-2); ok {
+				msg = h.Feed + ": " + line
+			}
+		}
 		items = append(items, Item{
 			Title:   n.Moderator.Headline(ctx, h.Title, n.Title),
-			Message: panel.Truncate(h.Feed+": "+h.Title, n.MessageMax),
+			Message: panel.Truncate(msg, n.MessageMax),
 		})
 	}
 	return items, nil
