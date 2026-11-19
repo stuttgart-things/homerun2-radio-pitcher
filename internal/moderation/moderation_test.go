@@ -287,6 +287,14 @@ func TestObserveReportsEveryOutcome(t *testing.T) {
 			func(m *Moderator) { m.Intro(context.Background(), "News", "the latest headlines", 120) }},
 		{"time number", ResultRejectedNumber, &fakeClient{answer: "It's 15:00 on Tuesday, 2 hours to go."},
 			func(m *Moderator) { m.TimeLine(context.Background(), "It's 15:00 on Tuesday.", 120, "15:00") }},
+		{"facts used", ResultUsed, &fakeClient{answer: "platform-sthings runs 64 pods on 3 nodes and 2 VMs."},
+			func(m *Moderator) {
+				m.Combine(context.Background(), []string{fact, "platform-sthings: 2 VMs."}, 120, "platform-sthings")
+			}},
+		{"facts number", ResultRejectedNumber, &fakeClient{answer: "platform-sthings runs 64 pods and 2 VMs."},
+			func(m *Moderator) {
+				m.Combine(context.Background(), []string{fact, "platform-sthings: 2 VMs."}, 120, "platform-sthings")
+			}},
 		{"fact error", ResultError, &fakeClient{err: errors.New("429 Too Many Requests")},
 			func(m *Moderator) { m.Phrase(context.Background(), fact, 120) }},
 		{"headline length", ResultRejectedLength, &fakeClient{answer: long},

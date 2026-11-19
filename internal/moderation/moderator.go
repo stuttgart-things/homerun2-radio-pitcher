@@ -20,8 +20,8 @@ type Moderator struct {
 	Timeout time.Duration // per call; 0 means 20s
 	Log     *slog.Logger
 	// Observe, when set, is told the outcome of every model call: kind
-	// (headline, summary, fact, blurb, intro, time) and one of the Result*
-	// values.
+	// (headline, summary, fact, facts, blurb, intro, time) and one of the
+	// Result* values.
 	Observe func(kind, result string)
 }
 
@@ -148,6 +148,60 @@ func (m *Moderator) Summary(ctx context.Context, headline, description string, m
 		return "", false
 	}
 	return out, true
+}
+
+const combineSystem = `You are the host of an office radio that plays on a 64x64 LED matrix.
+You join several infrastructure facts into one short, casual English sentence. Rules:
+- Answer with the sentence only: one line, no quotes.
+- Keep every fact and every number. Write each number exactly as it is, as digits. Never spell a number out. No other numbers, no arithmetic, no totals.
+- Keep every cluster or source name exactly as it is.
+- Do not invent names or facts.`
+
+// Combine joins facts (each a fixed sentence holding its numbers) into one
+// sentence of at most maxLen characters. Stricter than Phrase: the answer
+// must keep every number of the facts, as often as there (a dropped number
+// is a lost fact), add none, and keep every keep string (the source names).
+// ok is false without a model or when a check fails; the caller then airs
+// the facts one by one.
+func (m *Moderator) Combine(ctx context.Context, facts []string, maxLen int, keep ...string) (line string, ok bool) {
+	var clean []string
+	for _, f := range facts {
+		clean = append(clean, panel.Clean(f))
+	}
+	source := strings.Join(clean, " ")
+	user := "Facts:\n- " + strings.Join(clean, "\n- ")
+	if m == nil || m.Client == nil {
+		return "", false
+	}
+	out, err := m.ask(ctx, combineSystem, user, source)
+	if err == nil {
+		err = keepsNumbers(out, source)
+	}
+	if err == nil && maxLen > 0 && utf8.RuneCountInString(out) > maxLen {
+		err = fmt.Errorf("%w: answer longer than %d characters", errLength, maxLen)
+	}
+	for _, k := range keep {
+		if err == nil && k != "" && !strings.Contains(strings.ToLower(out), strings.ToLower(k)) {
+			err = fmt.Errorf("%w: answer drops %q", errName, k)
+		}
+	}
+	m.done("facts", err)
+	if err != nil {
+		return "", false
+	}
+	return out, true
+}
+
+// keepsNumbers is NumbersFrom the other way round: every number of source
+// is in out, at least as often.
+func keepsNumbers(out, source string) error {
+	have := numbers(out)
+	for n, c := range numbers(source) {
+		if have[n] < c {
+			return fmt.Errorf("%w: answer drops number %q", errNumber, n)
+		}
+	}
+	return nil
 }
 
 // Intro writes a casual host line that announces segment name, which
