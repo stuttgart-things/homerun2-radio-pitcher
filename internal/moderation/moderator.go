@@ -19,6 +19,54 @@ type Moderator struct {
 	Client  Client
 	Timeout time.Duration // per call; 0 means 20s
 	Log     *slog.Logger
+	// Observe, when set, is told the outcome of every model call: kind
+	// (headline, fact, blurb) and one of the Result* values.
+	Observe func(kind, result string)
+}
+
+// Outcomes of a model call, for Moderator.Observe.
+const (
+	ResultUsed           = "used"            // the answer aired
+	ResultRejectedNumber = "rejected_number" // a number not in the input (NumbersFrom)
+	ResultRejectedName   = "rejected_name"   // dropped a name it had to keep
+	ResultRejectedLength = "rejected_length" // too long for the card
+	ResultRejectedEmpty  = "rejected_empty"  // nothing left after cleaning
+	ResultError          = "error"           // the call failed: timeout, HTTP error, rate limit
+)
+
+var (
+	errNumber = errors.New("number check")
+	errName   = errors.New("name check")
+	errLength = errors.New("length check")
+	errEmpty  = errors.New("empty answer")
+)
+
+// Result maps the error of a model call to its Result* value.
+func Result(err error) string {
+	switch {
+	case err == nil:
+		return ResultUsed
+	case errors.Is(err, errNumber):
+		return ResultRejectedNumber
+	case errors.Is(err, errName):
+		return ResultRejectedName
+	case errors.Is(err, errLength):
+		return ResultRejectedLength
+	case errors.Is(err, errEmpty):
+		return ResultRejectedEmpty
+	default:
+		return ResultError
+	}
+}
+
+// done records the outcome of a call and logs a fallback.
+func (m *Moderator) done(kind string, err error) {
+	if m.Observe != nil {
+		m.Observe(kind, Result(err))
+	}
+	if err != nil {
+		m.logger().Debug("moderation fallback", "kind", kind, "result", Result(err), "reason", err)
+	}
 }
 
 const headlineSystem = `You are the host of an office radio that plays on a 64x64 LED matrix.
@@ -56,13 +104,13 @@ func (m *Moderator) Blurb(ctx context.Context, template, name string, maxLen int
 	}
 	out, err := m.ask(ctx, blurbSystem, user, template)
 	if err == nil && maxLen > 0 && utf8.RuneCountInString(out) > maxLen {
-		err = fmt.Errorf("answer longer than %d characters", maxLen)
+		err = fmt.Errorf("%w: answer longer than %d characters", errLength, maxLen)
 	}
 	if err == nil && name != "" && !strings.Contains(strings.ToLower(out), strings.ToLower(name)) {
-		err = fmt.Errorf("answer drops %q", name)
+		err = fmt.Errorf("%w: answer drops %q", errName, name)
 	}
+	m.done("blurb", err)
 	if err != nil {
-		m.logger().Debug("moderation fallback", "kind", "blurb", "reason", err)
 		return template
 	}
 	return out
@@ -80,10 +128,10 @@ func (m *Moderator) Headline(ctx context.Context, headline string, title panel.T
 		title.Lines*title.Width-title.Lines, title.Lines, title.Width, headline)
 	out, err := m.ask(ctx, headlineSystem, user, headline)
 	if err == nil && !title.Fits(out) {
-		err = fmt.Errorf("answer does not fit %dx%d: %q", title.Lines, title.Width, out)
+		err = fmt.Errorf("%w: answer does not fit %dx%d: %q", errLength, title.Lines, title.Width, out)
 	}
+	m.done("headline", err)
 	if err != nil {
-		m.logger().Debug("moderation fallback", "kind", "headline", "reason", err)
 		return fallback
 	}
 	return out
@@ -100,16 +148,16 @@ func (m *Moderator) Phrase(ctx context.Context, template string, maxLen int, kee
 	}
 	out, err := m.ask(ctx, factSystem, "Template: "+template, template)
 	if err == nil && maxLen > 0 && utf8.RuneCountInString(out) > maxLen {
-		err = fmt.Errorf("answer longer than %d characters", maxLen)
+		err = fmt.Errorf("%w: answer longer than %d characters", errLength, maxLen)
 	}
 	for _, k := range keep {
 		k = strings.ToLower(k)
 		if err == nil && k != "" && strings.Contains(strings.ToLower(template), k) && !strings.Contains(strings.ToLower(out), k) {
-			err = fmt.Errorf("answer drops %q", k)
+			err = fmt.Errorf("%w: answer drops %q", errName, k)
 		}
 	}
+	m.done("fact", err)
 	if err != nil {
-		m.logger().Debug("moderation fallback", "kind", "fact", "reason", err)
 		return template
 	}
 	return out
@@ -129,10 +177,10 @@ func (m *Moderator) ask(ctx context.Context, system, user, source string) (strin
 	}
 	out = clean(out)
 	if out == "" {
-		return "", errors.New("empty answer")
+		return "", errEmpty
 	}
 	if err := NumbersFrom(out, source); err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %w", errNumber, err)
 	}
 	return out, nil
 }

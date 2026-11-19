@@ -376,7 +376,7 @@ kubectl -n homerun2 exec deploy/homerun2-radio-pitcher -- /ko-app/homerun2-radio
 |---|---|
 | `GET /health` | liveness and version |
 | `GET /ready` | 200 when a schedule is loaded and Redis answers. The body names the schedule state (and a stale-schedule error), Redis, and `lastAired` |
-| `GET /metrics` | Prometheus; `homerun2_radio_items_total{segment,result}` |
+| `GET /metrics` | Prometheus; `homerun2_radio_items_total{segment,result}`; with moderation `homerun2_radio_moderation_total{kind,result}`: `kind` headline, fact, blurb; `result` `used` (the model's answer aired) or why the fixed text aired: `rejected_number`, `rejected_name`, `rejected_length`, `rejected_empty`, `error` (timeout, HTTP error, rate limit). UI previews count too |
 | `GET <BASE_PATH>/` | programme UI (below) |
 | `GET <BASE_PATH>/ui/manifest.json` | fragments for homerun2-portal: `on-air`, `last-aired` |
 

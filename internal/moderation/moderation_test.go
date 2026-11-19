@@ -263,3 +263,55 @@ func TestOllamaErrors(t *testing.T) {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 }
+
+func TestObserveReportsEveryOutcome(t *testing.T) {
+	const fact = "platform-sthings runs 64 pods on 3 nodes."
+	cases := []struct {
+		name, want string
+		client     *fakeClient
+		call       func(m *Moderator)
+	}{
+		{"fact used", ResultUsed, &fakeClient{answer: "platform-sthings: 64 pods, 3 nodes."},
+			func(m *Moderator) { m.Phrase(context.Background(), fact, 120, "platform-sthings") }},
+		{"fact number", ResultRejectedNumber, &fakeClient{answer: "platform-sthings runs 65 pods."},
+			func(m *Moderator) { m.Phrase(context.Background(), fact, 120, "platform-sthings") }},
+		{"fact name", ResultRejectedName, &fakeClient{answer: "The cluster runs 64 pods."},
+			func(m *Moderator) { m.Phrase(context.Background(), fact, 120, "platform-sthings") }},
+		{"fact length", ResultRejectedLength, &fakeClient{answer: "platform-sthings is busy with 64 pods on 3 nodes today."},
+			func(m *Moderator) { m.Phrase(context.Background(), fact, 20, "platform-sthings") }},
+		{"fact empty", ResultRejectedEmpty, &fakeClient{answer: " \"\" "},
+			func(m *Moderator) { m.Phrase(context.Background(), fact, 120) }},
+		{"fact error", ResultError, &fakeClient{err: errors.New("429 Too Many Requests")},
+			func(m *Moderator) { m.Phrase(context.Background(), fact, 120) }},
+		{"headline length", ResultRejectedLength, &fakeClient{answer: long},
+			func(m *Moderator) { m.Headline(context.Background(), long, panel.Card4x6) }},
+		{"blurb name", ResultRejectedName, &fakeClient{answer: "A service for analytics."},
+			func(m *Moderator) {
+				m.Blurb(context.Background(), "homerun2-scout: Analytics", "homerun2-scout", 120)
+			}},
+	}
+	for _, c := range cases {
+		var kinds, results []string
+		m := &Moderator{Client: c.client, Observe: func(kind, result string) {
+			kinds = append(kinds, kind)
+			results = append(results, result)
+		}}
+		c.call(m)
+		if len(results) != 1 || results[0] != c.want {
+			t.Errorf("%s: results %v, want [%s]", c.name, results, c.want)
+		}
+		wantKind := strings.Fields(c.name)[0]
+		if len(kinds) == 1 && kinds[0] != wantKind {
+			t.Errorf("%s: kind %q, want %q", c.name, kinds[0], wantKind)
+		}
+	}
+
+	// no model call, nothing observed: a headline that fits, or no client
+	var n int
+	m := &Moderator{Client: &fakeClient{answer: "x"}, Observe: func(string, string) { n++ }}
+	m.Headline(context.Background(), "Go 1.27 is out", panel.Card5x7)
+	(&Moderator{Observe: func(string, string) { n++ }}).Phrase(context.Background(), fact, 120)
+	if n != 0 {
+		t.Fatalf("observed %d calls that never reached the model", n)
+	}
+}
