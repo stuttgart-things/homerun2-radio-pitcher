@@ -43,6 +43,10 @@ type Config struct {
 	NewsTimeout time.Duration
 	NewsSeenFor time.Duration
 	NewsMaxAge  time.Duration
+	// NewsBlockWords skips headlines with one of these words (matched at a
+	// word start, case-insensitive). nil: the segment's default list; empty:
+	// none (RADIO_NEWS_BLOCK_WORDS=none).
+	NewsBlockWords []string
 
 	SourceTimeout time.Duration
 	FactsRecent   int
@@ -106,10 +110,11 @@ func Load(getenv func(string) string) (*Config, error) {
 		},
 		MessageMax: e.integer("RADIO_MESSAGE_MAX", 120),
 
-		NewsFeeds:   e.str("RADIO_NEWS_FEEDS", ""),
-		NewsTimeout: e.duration("RADIO_NEWS_TIMEOUT", 10*time.Second),
-		NewsSeenFor: e.duration("RADIO_NEWS_SEEN_FOR", 12*time.Hour),
-		NewsMaxAge:  e.duration("RADIO_NEWS_MAX_AGE", 48*time.Hour),
+		NewsFeeds:      e.str("RADIO_NEWS_FEEDS", ""),
+		NewsTimeout:    e.duration("RADIO_NEWS_TIMEOUT", 10*time.Second),
+		NewsSeenFor:    e.duration("RADIO_NEWS_SEEN_FOR", 12*time.Hour),
+		NewsMaxAge:     e.duration("RADIO_NEWS_MAX_AGE", 48*time.Hour),
+		NewsBlockWords: e.words("RADIO_NEWS_BLOCK_WORDS"),
 
 		SourceTimeout: e.duration("RADIO_SOURCE_TIMEOUT", 10*time.Second),
 		FactsRecent:   e.integer("RADIO_FACTS_RECENT", 4),
@@ -177,6 +182,25 @@ func (e *env) str(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// words reads a comma-separated list, lower case: nil when key is unset
+// (the caller's default), empty (not nil) when it is "none".
+func (e *env) words(key string) []string {
+	v, ok := e.lookup(key)
+	if !ok {
+		return nil
+	}
+	out := []string{}
+	if strings.EqualFold(v, "none") {
+		return out
+	}
+	for _, w := range strings.Split(v, ",") {
+		if w = strings.ToLower(strings.TrimSpace(w)); w != "" {
+			out = append(out, w)
+		}
+	}
+	return out
 }
 
 func (e *env) lookup(key string) (string, bool) {

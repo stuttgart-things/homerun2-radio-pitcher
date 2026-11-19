@@ -337,3 +337,47 @@ func TestPreviewKeepsNoState(t *testing.T) {
 		t.Fatalf("preview remembered facts: %v", s.recent)
 	}
 }
+
+// fetchHeadlines serves fixed headlines, newest first.
+func fetchHeadlines(titles ...string) FeedFetcher {
+	return func(_ context.Context, f Feed) ([]Headline, error) {
+		var hs []Headline
+		for i, t := range titles {
+			hs = append(hs, Headline{Feed: f.Name, ID: t, Title: t, Published: now.Add(-time.Duration(i) * time.Minute)})
+		}
+		return hs, nil
+	}
+}
+
+func TestNewsSkipsBlockWords(t *testing.T) {
+	titles := []string{
+		"We need smart people who give a shit",
+		"FUCKING slow builds, again",
+		"This is bullshit, says the CTO",
+		"Scunthorpe council moves to Kubernetes", // "cunt" inside a word: kept
+		"Go 1.27 is out",
+	}
+	n := &News{Feeds: []Feed{{Name: "hn"}}, Fetch: fetchHeadlines(titles...), Title: panel.Card4x6, MessageMax: 120}
+	items, err := n.Build(context.Background(), now, schedule.Params{"count": 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, it := range items {
+		got = append(got, it.Message)
+	}
+	want := []string{"hn: Scunthorpe council moves to Kubernetes", "hn: Go 1.27 is out"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("default list: %q", got)
+	}
+
+	// an own list replaces the default; an empty one blocks nothing
+	n = &News{Feeds: []Feed{{Name: "hn"}}, Fetch: fetchHeadlines(titles...), Title: panel.Card4x6, MessageMax: 120, BlockWords: []string{"go"}}
+	if items, _ := n.Build(context.Background(), now, schedule.Params{"count": 5}); len(items) != 4 {
+		t.Fatalf("own list: %+v", items)
+	}
+	n = &News{Feeds: []Feed{{Name: "hn"}}, Fetch: fetchHeadlines(titles...), Title: panel.Card4x6, MessageMax: 120, BlockWords: []string{}}
+	if items, _ := n.Build(context.Background(), now, schedule.Params{"count": 5}); len(items) != 5 {
+		t.Fatalf("empty list: %+v", items)
+	}
+}
