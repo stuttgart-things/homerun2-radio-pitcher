@@ -1,3 +1,11 @@
+# [0.11.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.10.0...v0.11.0) (2026-11-19)
+
+
+### Features
+
+* host lines before a segment and a casual time check ([7540795](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/75407955ddd4a738b5694cbc561ac6fd65048c54)), closes [#35](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/35)
+* metrics for moderation, used vs. rejected answers ([cf0d48a](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/cf0d48acb35d1a175ff7aba15848db45d2e679bc)), closes [#34](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/34)
+
 # [0.10.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.9.0...v0.10.0) (2026-11-19)
 
 
