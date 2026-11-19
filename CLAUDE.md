@@ -18,7 +18,9 @@ on a free panel. Concept: stuttgart-things/homerun-library#146.
 - Everything is configured by env and YAML; nothing environment-specific in
   code.
 - One language: English for code, docs, schedule keys, segment names and
-  on-air texts.
+  on-air texts. Exception: news headlines air in their feed's language
+  (e.g. heise in German); the radio never translates a headline (an
+  opt-in news `summary` is English).
 - One replica: two directors air every slot twice.
 
 ## Layout
