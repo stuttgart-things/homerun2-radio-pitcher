@@ -98,6 +98,7 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 		mod = &moderation.Moderator{
 			Client:  &moderation.Ollama{URL: cfg.OllamaURL, Model: cfg.OllamaModel, API: cfg.OllamaAPI, APIKey: cfg.LLMAPIKey, Temperature: 0.3},
 			Timeout: cfg.LLMTimeout,
+			Observe: handlers.ObserveModeration,
 		}
 		log.Info("moderation on", "ollama", cfg.OllamaURL, "model", cfg.OllamaModel, "api", cfg.OllamaAPI, "apiKey", cfg.LLMAPIKey != "")
 	} else {
