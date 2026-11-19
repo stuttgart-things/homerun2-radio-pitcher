@@ -40,3 +40,26 @@ func TestTickAirsBlockWithSpacingAndTags(t *testing.T) {
 		t.Fatalf("spacing: got %v, want %v", *slept, wantSleep)
 	}
 }
+
+func TestTickBlockSkipsGapOfSilentSlot(t *testing.T) {
+	tc := &countSeg{name: "time-check", n: 1}
+	news := &countSeg{name: "news", n: 1}
+	silent := &countSeg{name: "releases", n: 0}
+	infra := &countSeg{name: "infra-facts", n: 1}
+	d, rec, slept := setup(t, `
+clock:
+  ":00":
+    - { segment: time-check }
+    - { segment: news, count: 1, spacing: 25s }
+    - { segment: releases, spacing: 25s }
+    - { segment: infra-facts, count: 1 }
+`, tc, news, silent, infra)
+	d.Tick(context.Background(), time.Date(2026, 11, 17, 14, 0, 0, 0, time.UTC), false)
+	if len(rec.msgs) != 3 {
+		t.Fatalf("pitched %d, want 3", len(rec.msgs))
+	}
+	// time-check → news 15 s, news → (releases silent) → infra 25 s once
+	if want := []time.Duration{15 * time.Second, 25 * time.Second}; !reflect.DeepEqual(*slept, want) {
+		t.Fatalf("spacing: got %v, want %v", *slept, want)
+	}
+}
