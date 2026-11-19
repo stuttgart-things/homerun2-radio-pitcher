@@ -172,16 +172,24 @@ func (d *Director) Tick(ctx context.Context, now time.Time, async bool) {
 	}
 	run := func() {
 		defer d.onAir.Store(false)
-		for i, slot := range slots {
-			// the slots of one minute (extras, a block): space them like
-			// items, by the spacing of the slot before
-			if i > 0 {
-				if err := d.sleep(ctx, slots[i-1].Params.Duration("spacing", d.Spacing)); err != nil {
+		// the slots of one minute (extras, a block): space them like items,
+		// by the spacing of the last slot that aired something; a slot with
+		// nothing to say leaves no gap
+		var gap time.Duration
+		for _, slot := range slots {
+			if gap > 0 {
+				if err := d.sleep(ctx, gap); err != nil {
 					return
 				}
 			}
-			if _, err := d.Air(ctx, slot.Segment, slot.Params, now); err != nil {
+			n, err := d.Air(ctx, slot.Segment, slot.Params, now)
+			if err != nil {
 				d.logger().Warn("slot not aired", "segment", slot.Segment, "error", err)
+			}
+			if n > 0 {
+				gap = slot.Params.Duration("spacing", d.Spacing)
+			} else {
+				gap = 0
 			}
 		}
 	}
