@@ -1,3 +1,10 @@
+# [0.14.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.13.0...v0.14.0) (2026-11-19)
+
+
+### Features
+
+* news sums up an item in one sentence ([2d1dddb](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/2d1dddb4981da452f4babc055182d21f0f04c417)), closes [#47](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/47)
+
 # [0.13.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.12.0...v0.13.0) (2026-11-19)
 
 
