@@ -1,3 +1,10 @@
+# [0.15.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.14.0...v0.15.0) (2026-11-19)
+
+
+### Features
+
+* news mix lets the feeds take turns, each in its own order ([ad494c4](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/ad494c4e7efe95bd6cf7daf032a0614b6284be6f)), closes [#50](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/50)
+
 # [0.14.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.13.0...v0.14.0) (2026-11-19)
 
 
