@@ -1,3 +1,11 @@
+## [0.11.1](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.11.0...v0.11.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* a leading flag no longer starts a second director ([e6cdec2](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/e6cdec26fa2ceaa854fb625097f178c8a960ffad)), closes [#39](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/39)
+* daily-summary calls the top system "Most alerts" when it has alerts ([4803d48](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/4803d48572170076a51d655d25bd8c29a8895206)), closes [#38](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/38)
+
 # [0.11.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.10.0...v0.11.0) (2026-11-19)
 
 
