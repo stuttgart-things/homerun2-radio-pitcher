@@ -17,7 +17,10 @@ import (
 
 // InfraFacts airs randomly picked facts from the infrastructure sources.
 //
-// Parameters: count (default 1), sources (names, default all).
+// Parameters: count (default 1), sources (names, default all), combine
+// (default false): with moderation and a count above 1, the facts become
+// one sentence on one card (moderation.Combine: every number and source
+// name kept); if that fails they air one by one.
 type InfraFacts struct {
 	Sources   []sources.Source
 	Moderator *moderation.Moderator
@@ -74,8 +77,19 @@ func (s *InfraFacts) Build(ctx context.Context, _ time.Time, p schedule.Params) 
 	ordered := append(fresh, stale...)
 
 	count := min(p.Int("count", 1), len(ordered))
+	picked := ordered[:count]
+	if p.Bool("combine") && count > 1 {
+		if it, ok := s.combine(ctx, picked); ok {
+			if !IsPreview(ctx) {
+				for _, f := range picked {
+					s.remember(f.ID)
+				}
+			}
+			return []Item{it}, nil
+		}
+	}
 	items := make([]Item, 0, count)
-	for _, f := range ordered[:count] {
+	for _, f := range picked {
 		items = append(items, Item{
 			Title:   s.Title.Fit(f.Title),
 			Message: panel.Truncate(s.Moderator.Phrase(ctx, f.Message, s.MessageMax, f.Source), s.MessageMax),
@@ -85,6 +99,27 @@ func (s *InfraFacts) Build(ctx context.Context, _ time.Time, p schedule.Params) 
 		}
 	}
 	return items, nil
+}
+
+// combine asks the model for one sentence of all facts. The card's title is
+// the source when all facts share one, else "Infra facts".
+func (s *InfraFacts) combine(ctx context.Context, facts []sources.Fact) (Item, bool) {
+	var msgs, names []string
+	for _, f := range facts {
+		msgs = append(msgs, f.Message)
+		if f.Source != "" && !slices.Contains(names, f.Source) {
+			names = append(names, f.Source)
+		}
+	}
+	line, ok := s.Moderator.Combine(ctx, msgs, s.MessageMax, names...)
+	if !ok {
+		return Item{}, false
+	}
+	title := "Infra facts"
+	if len(names) == 1 {
+		title = names[0]
+	}
+	return Item{Title: s.Title.Fit(title), Message: line}, true
 }
 
 // collect queries the sources concurrently; a failing source is logged and
