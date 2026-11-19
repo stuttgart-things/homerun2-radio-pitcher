@@ -22,6 +22,7 @@ type Entity struct {
 	Title       string
 	Description string
 	Type        string // spec.type, e.g. service, website
+	Lifecycle   string // spec.lifecycle, e.g. production, deprecated
 }
 
 // Ref is the entity reference, kind:namespace/name in lower case.
@@ -61,7 +62,8 @@ type rawEntity struct {
 		Description string `json:"description"`
 	} `json:"metadata"`
 	Spec struct {
-		Type string `json:"type"`
+		Type      string `json:"type"`
+		Lifecycle string `json:"lifecycle"`
 	} `json:"spec"`
 }
 
@@ -80,7 +82,7 @@ func (c *Client) Entities(ctx context.Context, kinds []string) ([]Entity, error)
 		max = 1000
 	}
 	q := url.Values{
-		"fields": {"kind,metadata.namespace,metadata.name,metadata.title,metadata.description,spec.type"},
+		"fields": {"kind,metadata.namespace,metadata.name,metadata.title,metadata.description,spec.type,spec.lifecycle"},
 		"limit":  {strconv.Itoa(min(pageSize, max))},
 	}
 	for _, k := range kinds {
@@ -97,6 +99,7 @@ func (c *Client) Entities(ctx context.Context, kinds []string) ([]Entity, error)
 			out = append(out, Entity{
 				Kind: r.Kind, Namespace: r.Metadata.Namespace, Name: r.Metadata.Name,
 				Title: r.Metadata.Title, Description: r.Metadata.Description, Type: r.Spec.Type,
+				Lifecycle: r.Spec.Lifecycle,
 			})
 		}
 		if p.PageInfo.NextCursor == "" || len(out) >= max || len(p.Items) == 0 {

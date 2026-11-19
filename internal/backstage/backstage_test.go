@@ -34,7 +34,7 @@ func TestEntitiesFollowsTheCursor(t *testing.T) {
 			body = map[string]any{
 				"items": []any{map[string]any{"kind": "Component",
 					"metadata": map[string]any{"name": "scout", "namespace": "default", "description": "Analytics"},
-					"spec":     map[string]any{"type": "service"}}},
+					"spec":     map[string]any{"type": "service", "lifecycle": "production"}}},
 				"pageInfo": map[string]any{"nextCursor": "c2"},
 			}
 		case "c2":
@@ -55,7 +55,7 @@ func TestEntitiesFollowsTheCursor(t *testing.T) {
 	if len(es) != 2 || len(calls) != 2 {
 		t.Fatalf("entities %+v, calls %v", es, calls)
 	}
-	if es[0].Ref() != "component:default/scout" || es[0].Type != "service" || es[0].Label() != "scout" {
+	if es[0].Ref() != "component:default/scout" || es[0].Type != "service" || es[0].Lifecycle != "production" || es[0].Label() != "scout" {
 		t.Errorf("first %+v", es[0])
 	}
 	if es[1].Ref() != "system:default/homerun2" {

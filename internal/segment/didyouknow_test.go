@@ -30,6 +30,10 @@ func catalog() *fakeCatalog {
 		{Kind: "Component", Name: "homerun2-scout", Type: "service", Description: "Analytics for homerun2 messages"},
 		{Kind: "Component", Name: "machinery", Title: "Machinery", Type: "service", Description: "Fleet state of the lab's VMs"},
 		{Kind: "System", Name: "homerun2", Description: "  "}, // no description: never picked
+		// says nothing beyond the name, or deprecated: never picked (#32)
+		{Kind: "Component", Name: "dave", Description: "dave"},
+		{Kind: "Component", Name: "wled-mock", Title: "WLED Mock", Description: "WLED mock."},
+		{Kind: "Component", Name: "vault-labda", Lifecycle: "Deprecated", Description: "RETIRED: old Vault in LabDA"},
 		{Kind: "Component", Name: "docs-site", Type: "website", Description: "The team's docs"},
 	}}
 }

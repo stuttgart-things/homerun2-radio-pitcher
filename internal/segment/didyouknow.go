@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/backstage"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/moderation"
@@ -26,7 +27,8 @@ var defaultKinds = []string{"component", "system", "api", "resource"}
 
 // DidYouKnow airs a random entry of the Backstage catalog with its
 // description: "Did you know?" as the title line, the entry's name and what
-// it does as the message. Only entries with a description are picked, and an
+// it does as the message. Only entries with a description that says more than
+// their name are picked, never a deprecated one (spec.lifecycle), and an
 // aired entry is not repeated within SeenFor.
 //
 // Parameters: count (default 1), kinds (catalog kinds, default component,
@@ -76,7 +78,7 @@ func (d *DidYouKnow) Build(ctx context.Context, now time.Time, p schedule.Params
 
 	var fresh []backstage.Entity
 	for _, e := range all {
-		if strings.TrimSpace(e.Description) == "" {
+		if !saysMore(e) || strings.EqualFold(e.Lifecycle, "deprecated") {
 			continue
 		}
 		if len(types) > 0 && !containsFold(types, e.Type) {
@@ -123,6 +125,24 @@ func (d *DidYouKnow) prune(now time.Time) {
 			delete(d.seen, k)
 		}
 	}
+}
+
+// saysMore reports whether the description tells more than the entry's name
+// or title: "dave" described as "dave" (or "Dave.") does not.
+func saysMore(e backstage.Entity) bool {
+	d := bare(e.Description)
+	return d != "" && d != bare(e.Name) && d != bare(e.Title)
+}
+
+// bare is s in lower case with only its letters and digits.
+func bare(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func containsFold(list []string, s string) bool {
