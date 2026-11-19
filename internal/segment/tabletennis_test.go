@@ -72,25 +72,26 @@ func TestTabletennisStats(t *testing.T) {
 }
 
 func TestTabletennisStatsVariants(t *testing.T) {
-	// a day, the cap cut in, a tie of two, default count 3
+	// a day, the cap cut in, a tie of two, default count 3: "at least",
+	// and the other cards name the matches they cover (#43)
 	s := weekAtTheTable()
-	s.Matches, s.Truncated, s.LongestSet = 1, true, nil
-	s.MostWins = []schmetterpause.PlayerScore{{DisplayName: "Cem", Won: 1}, {DisplayName: "Anna", Won: 1, Lost: 1}}
+	s.Matches, s.Truncated, s.LongestSet = 200, true, nil
+	s.MostWins = []schmetterpause.PlayerScore{{DisplayName: "Cem", Won: 34}, {DisplayName: "Anna", Won: 34, Lost: 1}}
 	items, err := tableSegment(&fakeTable{stats: s}).Build(context.Background(), now, schedule.Params{"days": 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := strings.Join([]string{
-		"24h: 1 match | Table tennis in the last 24 h: at least 1 match, 30 sets, 612 points",
-		"Most wins: Cem and Anna | Most wins in the last 24 h: Cem and Anna, 1 each",
-		"24h: 4 deuce sets | In the last 24 h 4 sets went to deuce and 2 matches ended without a set lost",
+		"24h: 200+ matches | Table tennis in the last 24 h: at least 200 matches, 30 sets, 612 points",
+		"Most wins: Cem and Anna | Most wins in the last 200 matches: Cem and Anna, 34 each",
+		"4 deuce sets | In the last 200 matches 4 sets went to deuce and 2 matches ended without a set lost",
 	}, "\n")
 	if got := cards(items); got != want {
 		t.Fatalf("items:\n%s", got)
 	}
 
 	// a three-way tie names nobody
-	s.MostWins = append(s.MostWins, schmetterpause.PlayerScore{DisplayName: "Bea", Won: 1})
+	s.MostWins = append(s.MostWins, schmetterpause.PlayerScore{DisplayName: "Bea", Won: 34})
 	items, _ = tableSegment(&fakeTable{stats: s}).Build(context.Background(), now, schedule.Params{"count": 5})
 	if strings.Contains(cards(items), "Most wins") {
 		t.Fatalf("three-way tie aired:\n%s", cards(items))
@@ -125,5 +126,23 @@ func TestTabletennisStatsModeration(t *testing.T) {
 	items, _ = seg.Build(context.Background(), now, schedule.Params{"count": 3})
 	if items[2].Message != "Most wins in the last 7 days: Cem, 5 won and 1 lost" {
 		t.Fatalf("name dropped: %q", items[2].Message)
+	}
+}
+
+// With the cap cut in, the overview airs as is: the model once moved "at
+// least" to the wrong number ("200 sets of at least 200 matches"), which
+// no check catches (#43). The other cards are still reworded.
+func TestTabletennisStatsCappedOverviewIsFixed(t *testing.T) {
+	s := weekAtTheTable()
+	s.Matches, s.Truncated = 200, true
+	c := &countingClient{answer: "Busy day: 200 matches and 30 sets at the table!"}
+	seg := tableSegment(&fakeTable{stats: s})
+	seg.Moderator = &moderation.Moderator{Client: c}
+	items, _ := seg.Build(context.Background(), now, schedule.Params{"count": 2})
+	if items[0].Message != "Table tennis in the last 7 days: at least 200 matches, 30 sets, 612 points" {
+		t.Fatalf("capped overview reworded: %q", items[0].Message)
+	}
+	if c.calls != 1 {
+		t.Fatalf("model calls %d, want 1 (only the second card)", c.calls)
 	}
 }

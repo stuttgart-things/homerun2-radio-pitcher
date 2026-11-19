@@ -71,25 +71,35 @@ func (t *TabletennisStats) Build(ctx context.Context, _ time.Time, p schedule.Pa
 	if s.Matches == 0 {
 		return nil, nil
 	}
-	atLeast := ""
-	if s.Truncated {
-		atLeast = "at least "
-	}
-
 	type fact struct {
 		title, message string
 		keep           []string
+		fixed          bool // airs as is, never reworded
 	}
 	matchWord := plural(s.Matches, "match", "matches")
-	facts := []fact{{
+	overview := fact{
 		title: fmt.Sprintf("%s: %d %s", short, s.Matches, matchWord),
-		message: fmt.Sprintf("Table tennis in %s: %s%d %s, %d sets, %d points",
-			long, atLeast, s.Matches, matchWord, s.Sets, s.Points),
-	}}
+		message: fmt.Sprintf("Table tennis in %s: %d %s, %d sets, %d points",
+			long, s.Matches, matchWord, s.Sets, s.Points),
+	}
+	// schmetterpause's match cap cut into the window (#43): the counts are
+	// a floor, and everything else covers only the matches counted. The
+	// overview says "at least" and airs as is -- no check can catch the
+	// model moving "at least" to the wrong number -- and the other cards
+	// name the matches they cover instead of the window.
+	scope, prefix := long, short+": "
+	if s.Truncated {
+		overview.title = fmt.Sprintf("%s: %d+ %s", short, s.Matches, plural(s.Matches+1, "match", "matches"))
+		overview.message = fmt.Sprintf("Table tennis in %s: at least %d %s, %d sets, %d points",
+			long, s.Matches, matchWord, s.Sets, s.Points)
+		overview.fixed = true
+		scope, prefix = fmt.Sprintf("the last %d %s", s.Matches, matchWord), ""
+	}
+	facts := []fact{overview}
 	if s.LongestSet != nil {
 		facts = append(facts, fact{
 			title:   fmt.Sprintf("Longest set %d:%d", s.LongestSet.Home, s.LongestSet.Away),
-			message: fmt.Sprintf("Longest set at the table in %s: %d:%d", long, s.LongestSet.Home, s.LongestSet.Away),
+			message: fmt.Sprintf("Longest set at the table in %s: %d:%d", scope, s.LongestSet.Home, s.LongestSet.Away),
 		})
 	}
 	if names, won := leaders(s.MostWins); len(names) > 0 {
@@ -97,26 +107,30 @@ func (t *TabletennisStats) Build(ctx context.Context, _ time.Time, p schedule.Pa
 		f := fact{title: "Most wins: " + who, keep: names}
 		if len(names) == 1 {
 			lost := s.MostWins[0].Lost
-			f.message = fmt.Sprintf("Most wins in %s: %s, %d won and %d lost", long, who, won, lost)
+			f.message = fmt.Sprintf("Most wins in %s: %s, %d won and %d lost", scope, who, won, lost)
 		} else {
-			f.message = fmt.Sprintf("Most wins in %s: %s, %d each", long, who, won)
+			f.message = fmt.Sprintf("Most wins in %s: %s, %d each", scope, who, won)
 		}
 		facts = append(facts, f)
 	}
 	if s.Deuce > 0 || s.Whitewashes > 0 {
 		facts = append(facts, fact{
-			title: fmt.Sprintf("%s: %d deuce sets", short, s.Deuce),
+			title: fmt.Sprintf("%s%d deuce sets", prefix, s.Deuce),
 			message: fmt.Sprintf("In %s %d sets went to deuce and %d %s ended without a set lost",
-				long, s.Deuce, s.Whitewashes, plural(s.Whitewashes, "match", "matches")),
+				scope, s.Deuce, s.Whitewashes, plural(s.Whitewashes, "match", "matches")),
 		})
 	}
 
 	count := min(p.Int("count", 3), len(facts))
 	items := make([]Item, 0, count)
 	for _, f := range facts[:count] {
+		msg := f.message
+		if !f.fixed {
+			msg = t.Moderator.Phrase(ctx, msg, t.MessageMax, f.keep...)
+		}
 		items = append(items, Item{
 			Title:   t.Title.Fit(f.title),
-			Message: panel.Truncate(t.Moderator.Phrase(ctx, f.message, t.MessageMax, f.keep...), t.MessageMax),
+			Message: panel.Truncate(msg, t.MessageMax),
 		})
 	}
 	return items, nil
