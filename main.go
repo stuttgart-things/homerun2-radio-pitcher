@@ -30,6 +30,7 @@ import (
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/scout"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/segment"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/sources"
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/spots"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/ui"
 )
 
@@ -176,6 +177,17 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 		log.Warn("no backstage configured (RADIO_BACKSTAGE_URL), did-you-know slots stay silent")
 	}
 
+	var pool []spots.Spot
+	if cfg.SpotsPath != "" {
+		var err error
+		if pool, err = spots.Load(cfg.SpotsPath, cfg.MessageMax); err != nil {
+			return nil, fmt.Errorf("RADIO_SPOTS_PATH: %w", err)
+		}
+		log.Info("spots on", "path", cfg.SpotsPath, "spots", len(pool))
+	} else {
+		log.Warn("no spots configured (RADIO_SPOTS_PATH), spots slots stay silent")
+	}
+
 	var rel segment.ReleaseLister
 	if cfg.ReleasesOrg != "" {
 		rel = &github.Client{Org: cfg.ReleasesOrg, Token: cfg.GitHubToken, HTTP: &http.Client{Timeout: cfg.SourceTimeout}}
@@ -234,6 +246,7 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 			MessageMax: cfg.MessageMax,
 			Timeout:    cfg.SourceTimeout,
 		},
+		&segment.Spots{Pool: pool, Title: cfg.Title},
 		&segment.Rollouts{
 			Sources:    rolling,
 			Title:      cfg.Title,
@@ -382,7 +395,7 @@ func validate() error {
 	if err != nil {
 		return err
 	}
-	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{}, &segment.TabletennisStats{}, &segment.DidYouKnow{}, &segment.Rollouts{}, &segment.Releases{})
+	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{}, &segment.TabletennisStats{}, &segment.DidYouKnow{}, &segment.Rollouts{}, &segment.Releases{}, &segment.Spots{})
 	for _, u := range s.Unknown(known.Has) {
 		slog.Warn("unknown segment, will be skipped", "slot", u, "known", known.Names())
 	}
@@ -393,6 +406,13 @@ func validate() error {
 			return err
 		}
 		slog.Info("sources ok", "path", cfg.SourcesPath, "sources", len(cfgs))
+	}
+	if cfg.SpotsPath != "" {
+		pool, err := spots.Load(cfg.SpotsPath, cfg.MessageMax)
+		if err != nil {
+			return err
+		}
+		slog.Info("spots ok", "path", cfg.SpotsPath, "spots", len(pool))
 	}
 	return nil
 }

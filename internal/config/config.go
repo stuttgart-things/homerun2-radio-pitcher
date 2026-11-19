@@ -29,7 +29,10 @@ type Config struct {
 
 	SchedulePath string
 	SourcesPath  string
-	Location     *time.Location
+	// SpotsPath is spots.yaml, the pool of the spots segment; empty: no
+	// spots.
+	SpotsPath string
+	Location  *time.Location
 
 	System   string
 	Severity string
@@ -104,6 +107,7 @@ func Load(getenv func(string) string) (*Config, error) {
 
 		SchedulePath: e.str("RADIO_SCHEDULE_PATH", "/etc/homerun2-radio-pitcher/schedule.yaml"),
 		SourcesPath:  e.str("RADIO_SOURCES_PATH", ""),
+		SpotsPath:    e.str("RADIO_SPOTS_PATH", ""),
 
 		System:   e.str("RADIO_SYSTEM", "radio"),
 		Severity: e.str("RADIO_SEVERITY", "INFO"),

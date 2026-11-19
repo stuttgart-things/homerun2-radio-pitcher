@@ -14,6 +14,8 @@ clock:
   ":30": { segment: time-check }
   ":35": { segment: news, count: 2 }
   ":45": { segment: infra-facts, count: 2 }
+  # a break: a spot from spots.yaml (RADIO_SPOTS_PATH)
+  ":20": { segment: spots }
   # Between slots the catcher shows its idle clock. Not aired by the pitcher;
   # documents what the panel shows.
   default: { segment: idle-clock, style: rotate }

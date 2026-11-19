@@ -1,5 +1,5 @@
 """
-ConfigMap with schedule.yaml and sources.yaml. The pitcher re-reads the
+ConfigMap with schedule.yaml, sources.yaml and spots.yaml. The pitcher re-reads the
 schedule when Kubernetes updates the mounted file: a schedule change needs
 no restart.
 """
@@ -20,5 +20,7 @@ configMap = {
         "schedule.yaml": config.scheduleYaml
         if config.sourcesYaml:
             "sources.yaml": config.sourcesYaml
+        if config.spotsYaml:
+            "spots.yaml": config.spotsYaml
     }
 }

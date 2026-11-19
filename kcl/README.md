@@ -23,6 +23,7 @@ kcl run kcl -D config.scheduleYaml="$(cat examples/schedule.yaml)"
 | `config.redisPassword` | | renders Secret `<name>-redis` when no existing Secret is named; with neither, `REDIS_PASSWORD` is not set |
 | `config.scheduleYaml` | **required** | `schedule.yaml` |
 | `config.sourcesYaml` | | `sources.yaml`; empty: no infra-facts |
+| `config.spotsYaml` | | `spots.yaml` (same ConfigMap, `RADIO_SPOTS_PATH`); empty: no spots |
 | `config.kubeconfigSecret` | | existing Secret with kubeconfig files, mounted at `/etc/homerun2-radio-pitcher/kubeconfigs/` |
 | `config.inClusterReadAccess` | `false` | ClusterRole + binding: `list` on pods, nodes, namespaces, kustomizations, helmreleases, virtualmachines |
 | `config.timezone` | `Europe/Berlin` | |

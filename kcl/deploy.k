@@ -53,6 +53,8 @@ _env = [
 ] if config.uiEnabled and config.uiTokenSecretName else []) + ([
     {name: "RADIO_SOURCES_PATH", value: "{}/sources.yaml".format(_configDir)}
 ] if config.sourcesYaml else []) + ([
+    {name: "RADIO_SPOTS_PATH", value: "{}/spots.yaml".format(_configDir)}
+] if config.spotsYaml else []) + ([
     {name: "RADIO_NEWS_FEEDS", value: config.newsFeeds}
 ] if config.newsFeeds else []) + ([
     {name: "RADIO_SCOUT_URL", value: config.scoutUrl}

@@ -32,6 +32,8 @@ schema RadioPitcher:
     scheduleYaml: str
     # sources.yaml (same ConfigMap); empty: no infra-facts
     sourcesYaml: str = ""
+    # spots.yaml (same ConfigMap); empty: no spots
+    spotsYaml: str = ""
     # Secret with kubeconfig files, mounted at /etc/homerun2-radio-pitcher/kubeconfigs;
     # sources.yaml refers to them by path. Created outside (SOPS, ESO).
     kubeconfigSecret: str = ""
