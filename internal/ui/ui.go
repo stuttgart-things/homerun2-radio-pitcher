@@ -243,17 +243,22 @@ func (s *Server) build(r *http.Request) view {
 	}
 	sort.Ints(ms)
 	for _, m := range ms {
-		sl := slots[m]
-		v.Slots = append(v.Slots, slotView{
-			Minute:  fmt.Sprintf(":%02d", m),
-			Pct:     float64(m) * 100 / 60,
-			Segment: sl.Segment,
-			Params:  params(sl.Params),
-			Unknown: !known(sl.Segment),
-			Next:    ok && at.Minute() == m && at.Hour() == now.Hour(),
-			Past:    m <= now.Minute(),
-			Skipped: skipped(s.Director, now, m),
-		})
+		for i, sl := range slots[m] {
+			minute := fmt.Sprintf(":%02d", m)
+			if i > 0 { // the rest of a block: same minute, aired after the first
+				minute = ""
+			}
+			v.Slots = append(v.Slots, slotView{
+				Minute:  minute,
+				Pct:     float64(m) * 100 / 60,
+				Segment: sl.Segment,
+				Params:  params(sl.Params),
+				Unknown: !known(sl.Segment),
+				Next:    ok && at.Minute() == m && at.Hour() == now.Hour(),
+				Past:    m <= now.Minute(),
+				Skipped: skipped(s.Director, now, m),
+			})
+		}
 	}
 	if ok {
 		names := make([]string, len(next))

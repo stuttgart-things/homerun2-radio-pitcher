@@ -35,7 +35,7 @@ Each programme item is one homerun2 message. The led-catcher renders it as a
 | `severity` | `INFO` (`RADIO_SEVERITY`) |
 | `title` | short and fitted to the card: by default 4 lines of 16 characters (the catcher's 4x6 font), shortened at a word boundary with `…` |
 | `message` | the scrolling line, at most 120 characters (`RADIO_MESSAGE_MAX`) |
-| `tags` | `segment=<name>`, e.g. `segment=news`. A catcher rule can filter on it with `tags: [segment=news]` |
+| `tags` | `segment=<name>`, e.g. `segment=news`, then the slot's `card-tags` (e.g. `segment=news,show=news`). A catcher rule can filter on them with `tags: [segment=news]` |
 | `author` | `radio` (`RADIO_AUTHOR`), the card's footer |
 | `timestamp` | when the item was pitched, RFC 3339 |
 
@@ -76,7 +76,15 @@ the last good version stays on air.
 # of the hour (":00" to ":59"), `segment` names the segment, every other key
 # is a parameter of it. A minute without a slot leaves the panel to the
 # catcher's idle clock. It airs outside of every show and in shows without
-# their own clock.
+# their own clock. A minute may also hold a list of slots (a block, e.g. a
+# news show): they air one after the other.
+#   Every slot takes the director's parameters besides its segment's own:
+#   spacing    pause between its items and before the next slot of the
+#              block (Go duration, 1s-2m; default RADIO_ITEM_SPACING)
+#   card-tags  extra message tags (key=value), e.g. [show=news]: a catcher
+#              rule with `tags: [show=news]` and a longer `duration` holds
+#              these cards longer. The display time is the catcher's; keep
+#              spacing a few seconds above it.
 clock:
   ":00": { segment: time-check }
   ":05": { segment: news, count: 2 }
@@ -84,6 +92,10 @@ clock:
   ":30": { segment: time-check }
   ":35": { segment: news, count: 2 }
   ":45": { segment: infra-facts, count: 2 }
+  # a news show: one block, longer cards
+  ":50":
+    - { segment: news, count: 3, mix: true, spacing: 23s, card-tags: [show=news] }
+    - { segment: infra-facts, count: 1, spacing: 23s, card-tags: [show=news] }
   # Between slots the catcher shows its idle clock. Not aired by the pitcher;
   # documents what the panel shows.
   default: { segment: idle-clock, style: rotate }
@@ -128,7 +140,10 @@ starts after an extra's time does not air it late; it waits for the next
 window. The director logs `show on air` when the show changes.
 
 Validation reports every problem at once: a minute outside `:00`–`:59`, the
-same minute twice, a slot without `segment`, `count` outside 1–10, a malformed
+same minute twice, a slot without `segment` (also inside a block), an empty
+block, a list as `default`, `count` outside 1–10, `spacing` that is no
+duration from 1s to 2m, a `card-tags` entry that is not `key=value` or sets
+`segment=`, a malformed
 window, overlapping windows, a show without a name or with a clock that is not
 in `clocks`, an extra without `segment` or with `at` outside its window, or a
 brightness outside 0–100. A slot or extra naming a segment that does not

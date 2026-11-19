@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -166,9 +167,10 @@ func (d *Director) Tick(ctx context.Context, now time.Time, async bool) {
 	run := func() {
 		defer d.onAir.Store(false)
 		for i, slot := range slots {
-			// an extra and the clock slot of the same minute: space them like items
+			// the slots of one minute (extras, a block): space them like
+			// items, by the spacing of the slot before
 			if i > 0 {
-				if err := d.sleep(ctx, d.Spacing); err != nil {
+				if err := d.sleep(ctx, slots[i-1].Params.Duration("spacing", d.Spacing)); err != nil {
 					return
 				}
 			}
@@ -227,10 +229,12 @@ func (d *Director) Air(ctx context.Context, name string, params schedule.Params,
 		d.logger().Info("segment had nothing to say", "segment", name)
 		return 0, nil
 	}
+	spacing := params.Duration("spacing", d.Spacing)
+	tags := params.Strings("card-tags")
 	pitched := 0
 	for i, it := range items {
 		if i > 0 {
-			if err := d.sleep(ctx, d.Spacing); err != nil {
+			if err := d.sleep(ctx, spacing); err != nil {
 				return pitched, err
 			}
 		}
@@ -238,7 +242,7 @@ func (d *Director) Air(ctx context.Context, name string, params schedule.Params,
 		if i > 0 {
 			at = time.Now().In(d.loc())
 		}
-		msg := d.Message(name, it, at)
+		msg := d.Message(name, it, at, tags...)
 		id, err := d.Pitcher.Pitch(ctx, msg)
 		d.observe(name, err)
 		d.record(Aired{At: at, Segment: name, Title: msg.Title, Message: msg.Message, ID: id, Err: errText(err)})
@@ -258,7 +262,9 @@ func (d *Director) Air(ctx context.Context, name string, params schedule.Params,
 }
 
 // Message turns an item into the homerun2 message the catcher renders.
-func (d *Director) Message(seg string, it segment.Item, at time.Time) homerun.Message {
+// tags (key=value) follow segment=<seg>, e.g. show=news for a profile rule
+// that holds those cards longer.
+func (d *Director) Message(seg string, it segment.Item, at time.Time, tags ...string) homerun.Message {
 	return homerun.Message{
 		Title:     it.Title,
 		Message:   it.Message,
@@ -266,7 +272,7 @@ func (d *Director) Message(seg string, it segment.Item, at time.Time) homerun.Me
 		System:    d.Station.System,
 		Author:    d.Station.Author,
 		Timestamp: at.Format(time.RFC3339),
-		Tags:      "segment=" + seg,
+		Tags:      strings.Join(append([]string{"segment=" + seg}, tags...), ","),
 	}
 }
 

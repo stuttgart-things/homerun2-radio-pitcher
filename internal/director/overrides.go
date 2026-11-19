@@ -174,7 +174,7 @@ func (d *Director) Next(now time.Time) (time.Time, []schedule.Slot, bool) {
 }
 
 // ClockAt names the clock on air at t (a switched one first) and its slots.
-func (d *Director) ClockAt(s *schedule.Schedule, t time.Time) (string, map[int]schedule.Slot) {
+func (d *Director) ClockAt(s *schedule.Schedule, t time.Time) (string, map[int]schedule.Block) {
 	o := d.Overrides(t)
 	if o.Clock != "" {
 		if o.Clock == "default" {

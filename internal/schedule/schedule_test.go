@@ -32,11 +32,11 @@ func TestParseDraft(t *testing.T) {
 	if got, want := p.Minutes(), []int{0, 5, 15, 30, 35, 45}; !equalInts(got, want) {
 		t.Fatalf("minutes = %v, want %v", got, want)
 	}
-	news := p.Clock[5]
+	news := p.Clock[5][0]
 	if news.Segment != "news" || news.Params.Int("count", 1) != 3 {
 		t.Fatalf("news slot = %+v", news)
 	}
-	if got := p.Clock[0].Params.String("jingle", ""); got != "station-id.gif" {
+	if got := p.Clock[0][0].Params.String("jingle", ""); got != "station-id.gif" {
 		t.Fatalf("jingle = %q", got)
 	}
 	if p.Default == nil || p.Default.Segment != "idle-clock" {
@@ -349,4 +349,46 @@ func equalInts(a, b []int) bool {
 		}
 	}
 	return true
+}
+
+func TestParseBlock(t *testing.T) {
+	p, err := Parse(strings.NewReader(`
+clock:
+  ":00":
+    - { segment: time-check, casual: true }
+    - { segment: news, count: 6, mix: true, spacing: 25s, card-tags: [show=news] }
+  ":15": { segment: infra-facts }
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := p.Clock[0]
+	if len(b) != 2 || b.Segments() != "time-check, news" || b[1].Params.Duration("spacing", 0) != 25*time.Second {
+		t.Fatalf("block = %+v", b)
+	}
+	due := p.Due(time.Date(2026, 11, 17, 15, 0, 0, 0, time.UTC))
+	if len(due) != 2 || due[0].Segment != "time-check" || due[1].Segment != "news" {
+		t.Fatalf("due = %+v", due)
+	}
+	if got := p.Unknown(func(s string) bool { return s != "news" }); len(got) != 1 || got[0] != ":00 news" {
+		t.Fatalf("unknown = %v", got)
+	}
+}
+
+func TestParseBlockErrors(t *testing.T) {
+	for name, doc := range map[string]string{
+		"empty list":        "clock:\n  \":00\": []\n",
+		"no segment":        "clock:\n  \":00\":\n    - { segment: news }\n    - { count: 2 }\n",
+		"default list":      "clock:\n  \":05\": { segment: news }\n  default:\n    - { segment: idle-clock }\n    - { segment: idle-clock }\n",
+		"bad spacing":       "clock:\n  \":00\": { segment: news, spacing: 500ms }\n",
+		"spacing not dur":   "clock:\n  \":00\": { segment: news, spacing: long }\n",
+		"bad tag":           "clock:\n  \":00\": { segment: news, card-tags: [show] }\n",
+		"tag with space":    "clock:\n  \":00\": { segment: news, card-tags: [\"show=the news\"] }\n",
+		"segment tag":       "clock:\n  \":00\": { segment: news, card-tags: [segment=x] }\n",
+		"bad count in list": "clock:\n  \":00\":\n    - { segment: time-check }\n    - { segment: news, count: 0 }\n",
+	} {
+		if _, err := Parse(strings.NewReader(doc)); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
 }

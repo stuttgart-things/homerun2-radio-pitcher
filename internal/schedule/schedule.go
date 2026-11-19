@@ -20,10 +20,11 @@ import (
 
 // Schedule is the parsed schedule.yaml.
 type Schedule struct {
-	// Clock maps a minute of the hour (0-59) to the slot aired then. It
+	// Clock maps a minute of the hour (0-59) to the slots aired then, one
+	// after the other (a block, e.g. a news show; mostly one slot). It
 	// repeats every hour. It is the default clock: it airs outside of every
 	// show and in shows without their own clock.
-	Clock map[int]Slot
+	Clock map[int]Block
 	// Default is the `default` entry of the clock: what runs between slots.
 	// The idle screen belongs to the catcher, so the pitcher does not air
 	// it; it is kept so the file can say what the panel shows.
@@ -36,8 +37,44 @@ type Schedule struct {
 
 // Clock is a named format clock.
 type Clock struct {
-	Slots   map[int]Slot
+	Slots   map[int]Block
 	Default *Slot
+}
+
+// Block is what a clock airs at one minute: one slot, or a list of slots
+// aired one after the other.
+type Block []Slot
+
+// UnmarshalYAML reads a slot mapping or a list of them.
+func (b *Block) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind != yaml.SequenceNode {
+		var s Slot
+		if err := s.UnmarshalYAML(n); err != nil {
+			return err
+		}
+		*b = Block{s}
+		return nil
+	}
+	if len(n.Content) == 0 {
+		return fmt.Errorf("line %d: an empty list of slots", n.Line)
+	}
+	out := make(Block, len(n.Content))
+	for i, c := range n.Content {
+		if err := out[i].UnmarshalYAML(c); err != nil {
+			return err
+		}
+	}
+	*b = out
+	return nil
+}
+
+// Segments names the segments of the block, comma-separated.
+func (b Block) Segments() string {
+	names := make([]string, len(b))
+	for i, s := range b {
+		names[i] = s.Segment
+	}
+	return strings.Join(names, ", ")
 }
 
 // Slot is one entry of the clock: a segment and its parameters.
@@ -110,8 +147,8 @@ func (s Show) contains(m TimeOfDay) bool {
 
 // file is the YAML layout.
 type file struct {
-	Clock     map[string]Slot            `yaml:"clock"`
-	Clocks    map[string]map[string]Slot `yaml:"clocks"`
+	Clock     map[string]Block            `yaml:"clock"`
+	Clocks    map[string]map[string]Block `yaml:"clocks"`
 	Programme yaml.Node                  `yaml:"programme"`
 }
 
@@ -185,16 +222,29 @@ func Parse(r io.Reader) (*Schedule, error) {
 }
 
 // parseClock reads the slots of one clock; where names it in errors.
-func parseClock(where string, slots map[string]Slot) (Clock, []error) {
-	c := Clock{Slots: map[int]Slot{}}
+func parseClock(where string, blocks map[string]Block) (Clock, []error) {
+	c := Clock{Slots: map[int]Block{}}
 	var errs []error
-	for key, slot := range slots {
-		if slot.Segment == "" {
-			errs = append(errs, fmt.Errorf("%s %q: no segment", where, key))
+	for key, block := range blocks {
+		bad := false
+		for _, slot := range block {
+			if slot.Segment == "" {
+				errs = append(errs, fmt.Errorf("%s %q: no segment", where, key))
+				bad = true
+			} else if err := slot.Params.validate(); err != nil {
+				errs = append(errs, fmt.Errorf("%s %q: %s: %w", where, key, slot.Segment, err))
+				bad = true
+			}
+		}
+		if bad {
 			continue
 		}
 		if key == "default" {
-			s := slot
+			if len(block) != 1 {
+				errs = append(errs, fmt.Errorf("%s \"default\": one slot, not a list", where))
+				continue
+			}
+			s := block[0]
 			c.Default = &s
 			continue
 		}
@@ -207,11 +257,7 @@ func parseClock(where string, slots map[string]Slot) (Clock, []error) {
 			errs = append(errs, fmt.Errorf("%s %q: minute %d given twice", where, key, minute))
 			continue
 		}
-		if err := slot.Params.validate(); err != nil {
-			errs = append(errs, fmt.Errorf("%s %q: %w", where, key, err))
-			continue
-		}
-		c.Slots[minute] = slot
+		c.Slots[minute] = block
 	}
 	return c, errs
 }
@@ -349,9 +395,7 @@ func (p *Schedule) DueWithClock(t time.Time, override string) []Slot {
 	} else if override == "default" {
 		clock = p.Clock
 	}
-	if s, ok := clock[t.Minute()]; ok {
-		due = append(due, s)
-	}
+	due = append(due, clock[t.Minute()]...)
 	return due
 }
 
@@ -377,7 +421,7 @@ func (p *Schedule) Next(t time.Time, known func(string) bool) (at time.Time, slo
 
 // ClockAt returns the slots of the clock on air at t: the show's named clock
 // or the default one, and the name ("default" for the default clock).
-func (p *Schedule) ClockAt(t time.Time) (string, map[int]Slot) {
+func (p *Schedule) ClockAt(t time.Time) (string, map[int]Block) {
 	if show, ok := p.ShowAt(t); ok && show.Clock != "" {
 		return show.Clock, p.Clocks[show.Clock].Slots
 	}
@@ -397,7 +441,7 @@ func (p *Schedule) ShowAt(t time.Time) (Show, bool) {
 // Minutes returns the minutes of the default clock in order.
 func (p *Schedule) Minutes() []int { return minutes(p.Clock) }
 
-func minutes(slots map[int]Slot) []int {
+func minutes(slots map[int]Block) []int {
 	ms := make([]int, 0, len(slots))
 	for m := range slots {
 		ms = append(ms, m)
@@ -412,8 +456,10 @@ func minutes(slots map[int]Slot) []int {
 func (p *Schedule) Unknown(known func(string) bool) []string {
 	var out []string
 	for _, m := range p.Minutes() {
-		if s := p.Clock[m]; !known(s.Segment) {
-			out = append(out, fmt.Sprintf(":%02d %s", m, s.Segment))
+		for _, s := range p.Clock[m] {
+			if !known(s.Segment) {
+				out = append(out, fmt.Sprintf(":%02d %s", m, s.Segment))
+			}
 		}
 	}
 	names := make([]string, 0, len(p.Clocks))
@@ -424,8 +470,10 @@ func (p *Schedule) Unknown(known func(string) bool) []string {
 	for _, n := range names {
 		c := p.Clocks[n]
 		for _, m := range minutes(c.Slots) {
-			if s := c.Slots[m]; !known(s.Segment) {
-				out = append(out, fmt.Sprintf("%s :%02d %s", n, m, s.Segment))
+			for _, s := range c.Slots[m] {
+				if !known(s.Segment) {
+					out = append(out, fmt.Sprintf("%s :%02d %s", n, m, s.Segment))
+				}
 			}
 		}
 	}
