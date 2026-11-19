@@ -22,7 +22,7 @@ func TestWatcherReloads(t *testing.T) {
 
 	w := &Watcher{Path: path}
 	s, changed, err := w.Get()
-	if err != nil || !changed || s.Clock[5].Segment != "news" {
+	if err != nil || !changed || s.Clock[5][0].Segment != "news" {
 		t.Fatalf("first load: %v %v %+v", changed, err, s)
 	}
 	if _, changed, _ = w.Get(); changed {
@@ -32,7 +32,7 @@ func TestWatcherReloads(t *testing.T) {
 	// broken update: the old schedule stays
 	write("clock: [\n", t0.Add(time.Minute))
 	s, changed, err = w.Get()
-	if err == nil || changed || s == nil || s.Clock[5].Segment != "news" {
+	if err == nil || changed || s == nil || s.Clock[5][0].Segment != "news" {
 		t.Fatalf("broken update: %v %v %+v", changed, err, s)
 	}
 	if cur, lastErr := w.Current(); cur == nil || lastErr == nil {
@@ -42,7 +42,7 @@ func TestWatcherReloads(t *testing.T) {
 	// good update
 	write("clock:\n  \":10\": { segment: time-check }\n", t0.Add(2*time.Minute))
 	s, changed, err = w.Get()
-	if err != nil || !changed || s.Clock[10].Segment != "time-check" {
+	if err != nil || !changed || s.Clock[10][0].Segment != "time-check" {
 		t.Fatalf("good update: %v %v %+v", changed, err, s)
 	}
 

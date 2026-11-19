@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ParseParams reads "key=value" pairs (as `once` and the UI's preview take
@@ -98,12 +99,49 @@ func (p Params) Strings(key string) []string {
 	return out
 }
 
-// validate checks the parameters every segment shares.
+// Duration returns a Go duration parameter ("25s"), or def when it is
+// unset or not a duration (validate reports that).
+func (p Params) Duration(key string, def time.Duration) time.Duration {
+	v, ok := p[key]
+	if !ok {
+		return def
+	}
+	d, err := time.ParseDuration(strings.TrimSpace(fmt.Sprint(v)))
+	if err != nil {
+		return def
+	}
+	return d
+}
+
+// Spacing bounds: below a second the catcher would get the cards at once,
+// above two minutes a slot runs into the next.
+const (
+	minSpacing = time.Second
+	maxSpacing = 2 * time.Minute
+)
+
+// validate checks the parameters every segment shares: count, and the
+// director's spacing (pause between the slot's items) and card-tags (extra
+// message tags, key=value).
 func (p Params) validate() error {
 	if v, ok := p["count"]; ok {
 		n := p.Int("count", -1)
 		if n < 1 || n > 10 {
 			return fmt.Errorf("count %v: must be a number from 1 to 10", v)
+		}
+	}
+	if v, ok := p["spacing"]; ok {
+		d, err := time.ParseDuration(strings.TrimSpace(fmt.Sprint(v)))
+		if err != nil || d < minSpacing || d > maxSpacing {
+			return fmt.Errorf("spacing %v: must be a duration from %s to %s, e.g. 25s", v, minSpacing, maxSpacing)
+		}
+	}
+	for _, t := range p.Strings("card-tags") {
+		if k, v, ok := strings.Cut(t, "="); !ok || strings.TrimSpace(k) == "" || strings.TrimSpace(v) == "" || strings.Contains(t, " ") {
+			return fmt.Errorf("card-tags: %q, want key=value without spaces", t)
+		}
+		if strings.HasPrefix(t, "segment=") {
+			return fmt.Errorf("card-tags: %q, the director sets segment= itself", t)
 		}
 	}
 	return nil
