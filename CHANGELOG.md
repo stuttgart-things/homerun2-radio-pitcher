@@ -1,3 +1,15 @@
+# [0.12.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.11.1...v0.12.0) (2026-11-19)
+
+
+### Bug Fixes
+
+* tabletennis-stats says what a capped window covers ([485984b](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/485984b60b33b2b9ad6fade4b1ef96d32a03ee17)), closes [#43](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/43)
+
+
+### Features
+
+* news skips headlines with swear words ([331e2fb](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/331e2fb78c03df22ddbf11cc14173ac63bf8e0b5)), closes [#42](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/42)
+
 ## [0.11.1](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.11.0...v0.11.1) (2026-11-19)
 
 
