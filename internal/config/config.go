@@ -63,8 +63,12 @@ type Config struct {
 	// BackstageURL and BackstageToken reach the Backstage catalog for
 	// did-you-know (a static external access token); an aired entry is not
 	// repeated within DidYouKnowSeenFor.
-	BackstageURL      string
-	BackstageToken    string
+	BackstageURL   string
+	BackstageToken string
+	// ReleasesOrg is the GitHub organization whose releases the releases
+	// segment airs; GitHubToken is optional (60 requests an hour without).
+	ReleasesOrg       string
+	GitHubToken       string
 	DidYouKnowSeenFor time.Duration
 
 	// BasePath is the URL prefix of the UI (BASE_PATH), e.g. "/radio"
@@ -126,6 +130,8 @@ func Load(getenv func(string) string) (*Config, error) {
 
 		BackstageURL:      e.str("RADIO_BACKSTAGE_URL", ""),
 		BackstageToken:    strings.TrimSpace(e.str("RADIO_BACKSTAGE_TOKEN", "")),
+		ReleasesOrg:       strings.TrimSpace(e.str("RADIO_RELEASES_ORG", "")),
+		GitHubToken:       strings.TrimSpace(e.str("RADIO_GITHUB_TOKEN", "")),
 		DidYouKnowSeenFor: e.duration("RADIO_DID_YOU_KNOW_SEEN_FOR", 7*24*time.Hour),
 
 		UIEnabled:   e.boolean("RADIO_UI_ENABLED", true),

@@ -149,7 +149,7 @@ func (s Show) contains(m TimeOfDay) bool {
 type file struct {
 	Clock     map[string]Block            `yaml:"clock"`
 	Clocks    map[string]map[string]Block `yaml:"clocks"`
-	Programme yaml.Node                  `yaml:"programme"`
+	Programme yaml.Node                   `yaml:"programme"`
 }
 
 // UnmarshalYAML reads `{ segment: news, count: 3 }`: `segment` names the
