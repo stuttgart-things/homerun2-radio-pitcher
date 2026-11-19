@@ -20,7 +20,7 @@ type Moderator struct {
 	Timeout time.Duration // per call; 0 means 20s
 	Log     *slog.Logger
 	// Observe, when set, is told the outcome of every model call: kind
-	// (headline, fact, blurb) and one of the Result* values.
+	// (headline, fact, blurb, intro, time) and one of the Result* values.
 	Observe func(kind, result string)
 }
 
@@ -31,6 +31,7 @@ const (
 	ResultRejectedName   = "rejected_name"   // dropped a name it had to keep
 	ResultRejectedLength = "rejected_length" // too long for the card
 	ResultRejectedEmpty  = "rejected_empty"  // nothing left after cleaning
+	ResultRejectedEcho   = "rejected_echo"   // only repeated the input
 	ResultError          = "error"           // the call failed: timeout, HTTP error, rate limit
 )
 
@@ -39,6 +40,7 @@ var (
 	errName   = errors.New("name check")
 	errLength = errors.New("length check")
 	errEmpty  = errors.New("empty answer")
+	errEcho   = errors.New("answer only repeats the input")
 )
 
 // Result maps the error of a model call to its Result* value.
@@ -54,6 +56,8 @@ func Result(err error) string {
 		return ResultRejectedLength
 	case errors.Is(err, errEmpty):
 		return ResultRejectedEmpty
+	case errors.Is(err, errEcho):
+		return ResultRejectedEcho
 	default:
 		return ResultError
 	}
@@ -89,6 +93,42 @@ You turn an entry of the team's software catalog into one short, casual English 
 - Keep the entry's name exactly as it is.
 - Use only what the entry says. Do not invent features, owners or facts.
 - Use only the numbers in the entry, written exactly as they are, as digits. Never spell a number out.`
+
+const introSystem = `You are the host of an office radio that plays on a 64x64 LED matrix.
+You announce the next segment in one short, casual English line, in your own words. Rules:
+- Answer with the line only: one line, no quotes.
+- Name the segment exactly as given.
+- Only announce. Do not make up headlines, facts, names or results.
+- No numbers.`
+
+const timeSystem = `You are the host of an office radio that plays on a 64x64 LED matrix.
+You turn a time check into one short, casual English line. Rules:
+- Answer with the line only: one line, no quotes.
+- Keep the time and the weekday exactly as they are.
+- Use only the numbers in the template, written exactly as they are, as digits. Never spell a number out. No other numbers.
+- Do not invent events, weather or news.`
+
+// Intro writes a casual host line that announces segment name, which
+// brings about (e.g. "News", "the latest headlines"). The line must name the
+// segment and has no numbers. ok is false without a model or when the answer
+// fails a check (or only repeats the input); the caller then airs its fixed
+// line.
+func (m *Moderator) Intro(ctx context.Context, name, about string, maxLen int) (line string, ok bool) {
+	input := "Next segment: " + panel.Clean(name)
+	if about != "" {
+		input += "\nWhat it brings: " + panel.Clean(about)
+	}
+	return m.try(ctx, "intro", introSystem, input, input, maxLen, []string{name})
+}
+
+// TimeLine turns a time check (template, e.g. "It's 15:00 on Tuesday, 17
+// November 2026.") into a casual line that keeps keep (the time and the
+// weekday). ok is false without a model or when the answer fails a check;
+// the caller then airs its fixed text.
+func (m *Moderator) TimeLine(ctx context.Context, template string, maxLen int, keep ...string) (line string, ok bool) {
+	template = panel.Clean(template)
+	return m.try(ctx, "time", timeSystem, "Template: "+template, template, maxLen, keep)
+}
 
 // Blurb turns a catalog entry (template: "<name>: <description>") into one
 // sentence of at most maxLen characters that keeps name. The same checks
@@ -142,25 +182,45 @@ func (m *Moderator) Headline(ctx context.Context, headline string, title panel.T
 // contain every keep string (e.g. the source name) that the template
 // contains, case-insensitively.
 func (m *Moderator) Phrase(ctx context.Context, template string, maxLen int, keep ...string) string {
+	return m.rephrase(ctx, "fact", factSystem, template, maxLen, keep)
+}
+
+// rephrase asks the model to reword template under system; on any failure
+// the template comes back.
+func (m *Moderator) rephrase(ctx context.Context, kind, system, template string, maxLen int, keep []string) string {
 	template = panel.Clean(template)
-	if m == nil || m.Client == nil {
-		return template
+	if out, ok := m.try(ctx, kind, system, "Template: "+template, template, maxLen, keep); ok {
+		return out
 	}
-	out, err := m.ask(ctx, factSystem, "Template: "+template, template)
+	return template
+}
+
+// try asks the model (user is the prompt, source the text its numbers and
+// names come from) and checks the answer: the numbers (ask), at most maxLen
+// characters, every keep string that source contains (case-insensitively),
+// and not just source again. It reports the outcome to Observe.
+func (m *Moderator) try(ctx context.Context, kind, system, user, source string, maxLen int, keep []string) (string, bool) {
+	if m == nil || m.Client == nil {
+		return "", false
+	}
+	out, err := m.ask(ctx, system, user, source)
 	if err == nil && maxLen > 0 && utf8.RuneCountInString(out) > maxLen {
 		err = fmt.Errorf("%w: answer longer than %d characters", errLength, maxLen)
 	}
 	for _, k := range keep {
 		k = strings.ToLower(k)
-		if err == nil && k != "" && strings.Contains(strings.ToLower(template), k) && !strings.Contains(strings.ToLower(out), k) {
+		if err == nil && k != "" && strings.Contains(strings.ToLower(source), k) && !strings.Contains(strings.ToLower(out), k) {
 			err = fmt.Errorf("%w: answer drops %q", errName, k)
 		}
 	}
-	m.done("fact", err)
-	if err != nil {
-		return template
+	if err == nil && strings.EqualFold(out, panel.Clean(source)) {
+		err = errEcho
 	}
-	return out
+	m.done(kind, err)
+	if err != nil {
+		return "", false
+	}
+	return out, true
 }
 
 // ask calls the model and applies the checks every answer must pass.

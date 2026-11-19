@@ -59,6 +59,21 @@ func (p Params) String(key, def string) string {
 	return def
 }
 
+// Bool returns a yes/no parameter: a YAML bool, or "true"/"yes"/"on" as
+// `once` and the UI's preview pass it. Unset or anything else is false.
+func (p Params) Bool(key string) bool {
+	switch v := p[key].(type) {
+	case bool:
+		return v
+	case string:
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "true", "yes", "on":
+			return true
+		}
+	}
+	return false
+}
+
 // Strings returns a list parameter: a YAML list or a comma-separated string.
 func (p Params) Strings(key string) []string {
 	v, ok := p[key]

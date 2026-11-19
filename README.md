@@ -149,7 +149,7 @@ The full examples are [`examples/schedule.yaml`](examples/schedule.yaml) and
 
 | Segment | Parameters | Airs |
 |---|---|---|
-| `time-check` | – | `It's 15:00` / `Tuesday, 17 November 2026` in `RADIO_TIMEZONE` |
+| `time-check` | `casual` (default false) | `It's 15:00` / `Tuesday, 17 November 2026` in `RADIO_TIMEZONE`. With `casual: true` and moderation, the scrolling line is a casual host line that must keep the time and the weekday and add no number (`It's 15:00 on Tuesday, 17 November 2026 — take a quick breather.`); else the date |
 | `news` | `count` (1), `feeds` (names, default all) | the newest headlines of the feeds not aired in the last `RADIO_NEWS_SEEN_FOR`, younger than `RADIO_NEWS_MAX_AGE`. The title is the headline shortened to fit the card; the message is `<feed>: <full headline>` |
 | `infra-facts` | `count` (1), `sources` (names, default all) | randomly picked facts. The last `RADIO_FACTS_RECENT` picks are avoided while other facts are available |
 | `daily-summary` | `window` (`hourly`, `daily`, `weekly`; default `daily`), `count` (3), `tags` (names) | the balance of the window from [homerun2-scout](https://github.com/stuttgart-things/homerun2-scout) (`RADIO_SCOUT_URL`), in this order: `24h: 312 msgs, 3 err` / `In the last 24 h: 312 messages, 3 errors, 0 critical (before: 290)`; per tag `24h: 4 release` / `In the last 24 h: 4 messages tagged release`; `Busiest: kubernetes` / `In the last 24 h: kubernetes sent 120 messages, 2 of them alerts`. Scout's windows are rolling (the last 24 h, not since midnight), and the cards say so; when retention has dropped part of the window, "at least" and no comparison. The station's own cards are in scout's index too: set `DIGEST_EXCLUDE_SYSTEMS=radio` (or `RADIO_SYSTEM`) on scout so the counts leave them out; the segment never names its own system the busiest |
@@ -158,6 +158,20 @@ The full examples are [`examples/schedule.yaml`](examples/schedule.yaml) and
 
 A segment with nothing to say (every headline seen, every source down) airs
 nothing, and the panel keeps its idle clock.
+
+**Host lines.** Any slot can start with an announcement: `intro: true`
+(`once news intro=true` and the UI's preview take it too). The card is
+`Next up: News` with `The latest headlines`; with moderation the scrolling
+line is a casual host line that must name the segment and has no numbers
+(`Up next, it's News with the latest headlines for you.`). It airs only
+when the segment has something to say, never `Next up` followed by silence,
+and takes one more card's time in the slot.
+
+```yaml
+clock:
+  ":05": { segment: news, count: 2, intro: true }
+  ":30": { segment: time-check, casual: true }
+```
 
 ### Infra facts and sources (`sources.yaml`)
 
@@ -376,7 +390,7 @@ kubectl -n homerun2 exec deploy/homerun2-radio-pitcher -- /ko-app/homerun2-radio
 |---|---|
 | `GET /health` | liveness and version |
 | `GET /ready` | 200 when a schedule is loaded and Redis answers. The body names the schedule state (and a stale-schedule error), Redis, and `lastAired` |
-| `GET /metrics` | Prometheus; `homerun2_radio_items_total{segment,result}`; with moderation `homerun2_radio_moderation_total{kind,result}`: `kind` headline, fact, blurb; `result` `used` (the model's answer aired) or why the fixed text aired: `rejected_number`, `rejected_name`, `rejected_length`, `rejected_empty`, `error` (timeout, HTTP error, rate limit). UI previews count too |
+| `GET /metrics` | Prometheus; `homerun2_radio_items_total{segment,result}`; with moderation `homerun2_radio_moderation_total{kind,result}`: `kind` headline, fact, blurb, intro, time; `result` `used` (the model's answer aired) or why the fixed text aired: `rejected_number`, `rejected_name`, `rejected_length`, `rejected_empty`, `rejected_echo` (only repeated the input), `error` (timeout, HTTP error, rate limit). UI previews count too |
 | `GET <BASE_PATH>/` | programme UI (below) |
 | `GET <BASE_PATH>/ui/manifest.json` | fragments for homerun2-portal: `on-air`, `last-aired` |
 
