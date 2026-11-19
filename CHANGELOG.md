@@ -1,3 +1,17 @@
+# [0.17.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.16.0...v0.17.0) (2026-11-19)
+
+
+### Bug Fixes
+
+* a silent slot in a block leaves no gap ([ada76a9](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/ada76a90320d924e0ef841920be0b60c05e571fb)), closes [#60](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/60)
+
+
+### Features
+
+* releases cards link the release page ([7a0c20b](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/7a0c20bd3b0835ca4c842f2037a6c61cdb3f5de1))
+* releases segment airs the org's new GitHub releases ([14b249a](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/14b249ab0933d580a4ccac7370e6ebb7c36f938c)), closes [#54](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/54)
+* **ui:** archive of aired cards with search and article links ([9dcc4d0](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/9dcc4d068e1b29cca75eb55b0c1f7bfeb0e541bd)), closes [#55](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/55)
+
 # [0.16.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.15.0...v0.16.0) (2026-11-19)
 
 
