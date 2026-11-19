@@ -39,7 +39,8 @@ on a free panel. Concept: stuttgart-things/homerun-library#146.
   (homerun2-scout digest, `internal/scout`), `tabletennis-stats`
   (schmetterpause `/api/statistics`, `internal/schmetterpause`),
   `did-you-know` (Backstage catalog, `internal/backstage`, seen-store),
-  `infra-facts` (random pick, avoids recent); `intro.go`: `Host` and
+  `infra-facts` (random pick, avoids recent), `rollouts` (`RolloutSource`
+  of the kubernetes/flux sources, grouped per namespace); `intro.go`: `Host` and
   `Registry.WithIntros` (slot param `intro: true`)
 - `internal/sources`: `Source` interface, `sources.yaml`; `Kubernetes`
   (typed client), `Flux` and `Harvester` (dynamic client)

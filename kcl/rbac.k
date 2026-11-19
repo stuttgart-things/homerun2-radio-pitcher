@@ -18,6 +18,8 @@ clusterRole = {
     }
     rules: [
         {apiGroups: [""], resources: ["pods", "nodes", "namespaces"], verbs: ["list"]}
+        # rollouts: the newest revision of Deployments, StatefulSets, DaemonSets
+        {apiGroups: ["apps"], resources: ["replicasets", "controllerrevisions"], verbs: ["list"]}
         {apiGroups: ["kustomize.toolkit.fluxcd.io"], resources: ["kustomizations"], verbs: ["list"]}
         {apiGroups: ["helm.toolkit.fluxcd.io"], resources: ["helmreleases"], verbs: ["list"]}
         {apiGroups: ["kubevirt.io"], resources: ["virtualmachines"], verbs: ["list"]}
