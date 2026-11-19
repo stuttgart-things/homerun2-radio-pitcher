@@ -23,10 +23,12 @@ type FeedFetcher func(ctx context.Context, f Feed) ([]Headline, error)
 
 // News airs the newest unseen headlines of the configured feeds.
 //
-// Parameters: count (default 1), feeds (names, default all), summary
-// (default false): with moderation, the scrolling line is "<feed>: <one
-// sentence>" summed up from the feed's description, numbers only from the
-// headline and the description; else "<feed>: <headline>".
+// Parameters: count (default 1), feeds (names, default all), mix (default
+// false): the feeds take turns, each in its own order, instead of all
+// headlines newest first; summary (default false): with moderation, the
+// scrolling line is "<feed>: <one sentence>" summed up from the feed's
+// description, numbers only from the headline and the description; else
+// "<feed>: <headline>".
 type News struct {
 	Feeds     []Feed
 	Fetch     FeedFetcher
@@ -100,14 +102,14 @@ func (n *News) Build(ctx context.Context, now time.Time, p schedule.Params) ([]I
 	}
 
 	var (
-		wg   sync.WaitGroup
-		mu   sync.Mutex
-		all  []Headline
-		errs int
+		wg     sync.WaitGroup
+		mu     sync.Mutex
+		byFeed = make([][]Headline, len(feeds))
+		errs   int
 	)
-	for _, f := range feeds {
+	for i, f := range feeds {
 		wg.Add(1)
-		go func(f Feed) {
+		go func(i int, f Feed) {
 			defer wg.Done()
 			hs, err := n.Fetch(ctx, f)
 			mu.Lock()
@@ -117,38 +119,43 @@ func (n *News) Build(ctx context.Context, now time.Time, p schedule.Params) ([]I
 				n.logger().Warn("feed failed, skipped", "feed", f.Name, "error", err)
 				return
 			}
-			all = append(all, hs...)
-		}(f)
+			byFeed[i] = hs
+		}(i, f)
 	}
 	wg.Wait()
 	if errs == len(feeds) {
 		return nil, fmt.Errorf("news: all %d feeds failed", errs)
 	}
-
-	// newest first; undated headlines last, in feed order
-	sort.SliceStable(all, func(i, j int) bool { return all[i].Published.After(all[j].Published) })
+	mix := p.Bool("mix")
+	if mix {
+		orderFeeds(feeds, p.Strings("feeds"), byFeed)
+	}
 
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.prune(now)
 
 	count := p.Int("count", 1)
+	var all []Headline
+	if mix {
+		all = n.takeTurns(now, byFeed, count)
+	} else {
+		for _, hs := range byFeed {
+			all = append(all, hs...)
+		}
+		// newest first; undated headlines last, in feed order
+		sort.SliceStable(all, func(i, j int) bool { return all[i].Published.After(all[j].Published) })
+	}
+
 	var items []Item
 	for _, h := range all {
 		if len(items) == count {
 			break
 		}
-		if n.MaxAge > 0 && !h.Published.IsZero() && now.Sub(h.Published) > n.MaxAge {
+		if !n.airable(now, h) {
 			continue
 		}
 		key := h.Feed + "\x00" + h.ID
-		if _, ok := n.seen[key]; ok {
-			continue
-		}
-		if n.blocked(h.Title) {
-			n.logger().Debug("headline skipped, block word", "feed", h.Feed, "title", h.Title)
-			continue
-		}
 		if !IsPreview(ctx) {
 			n.seen[key] = now
 		}
@@ -164,6 +171,71 @@ func (n *News) Build(ctx context.Context, now time.Time, p schedule.Params) ([]I
 		})
 	}
 	return items, nil
+}
+
+// airable reports whether h may air: not too old, not aired within
+// SeenFor, no block word. Called with n.mu held.
+func (n *News) airable(now time.Time, h Headline) bool {
+	if n.MaxAge > 0 && !h.Published.IsZero() && now.Sub(h.Published) > n.MaxAge {
+		return false
+	}
+	if _, ok := n.seen[h.Feed+"\x00"+h.ID]; ok {
+		return false
+	}
+	if n.blocked(h.Title) {
+		n.logger().Debug("headline skipped, block word", "feed", h.Feed, "title", h.Title)
+		return false
+	}
+	return true
+}
+
+// takeTurns picks up to count airable headlines, one per feed in turn,
+// each feed in its own order. A feed with nothing left drops out. Called
+// with n.mu held.
+func (n *News) takeTurns(now time.Time, byFeed [][]Headline, count int) []Headline {
+	next := make([]int, len(byFeed))
+	var out []Headline
+	for len(out) < count {
+		took := false
+		for i, hs := range byFeed {
+			if len(out) == count {
+				break
+			}
+			for next[i] < len(hs) {
+				h := hs[next[i]]
+				next[i]++
+				if n.airable(now, h) {
+					out = append(out, h)
+					took = true
+					break
+				}
+			}
+		}
+		if !took {
+			break
+		}
+	}
+	return out
+}
+
+// orderFeeds sorts byFeed (fetched for feeds, in RADIO_NEWS_FEEDS order)
+// into the order the slot lists them in want, so the turns follow the slot.
+func orderFeeds(feeds []Feed, want []string, byFeed [][]Headline) {
+	if len(want) == 0 {
+		return
+	}
+	idx := make([]int, len(feeds))
+	for i := range idx {
+		idx[i] = i
+	}
+	sort.SliceStable(idx, func(a, b int) bool {
+		return slices.Index(want, feeds[idx[a]].Name) < slices.Index(want, feeds[idx[b]].Name)
+	})
+	sorted := make([][]Headline, len(idx))
+	for i, j := range idx {
+		sorted[i] = byFeed[j]
+	}
+	copy(byFeed, sorted)
 }
 
 func (n *News) prune(now time.Time) {
