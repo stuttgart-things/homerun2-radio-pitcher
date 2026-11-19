@@ -1,3 +1,11 @@
+# [0.16.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.15.0...v0.16.0) (2026-11-19)
+
+
+### Features
+
+* a clock minute may air a block of slots; spacing and card-tags ([e8de08b](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/e8de08b97f2466a17b042c35069f9dc41cf7c643)), closes [#52](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/52)
+* rollouts segment airs what was deployed lately ([ec55881](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/ec558812f49b291eea1360424f448dcc2514c2d4)), closes [#53](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/53)
+
 # [0.15.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.14.0...v0.15.0) (2026-11-19)
 
 

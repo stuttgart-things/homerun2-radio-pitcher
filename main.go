@@ -21,6 +21,7 @@ import (
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/backstage"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/config"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/director"
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/github"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/handlers"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/moderation"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/pitcher"
@@ -175,6 +176,14 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 		log.Warn("no backstage configured (RADIO_BACKSTAGE_URL), did-you-know slots stay silent")
 	}
 
+	var rel segment.ReleaseLister
+	if cfg.ReleasesOrg != "" {
+		rel = &github.Client{Org: cfg.ReleasesOrg, Token: cfg.GitHubToken, HTTP: &http.Client{Timeout: cfg.SourceTimeout}}
+		log.Info("github releases on", "org", cfg.ReleasesOrg, "token", cfg.GitHubToken != "")
+	} else {
+		log.Warn("no github org configured (RADIO_RELEASES_ORG), releases slots stay silent")
+	}
+
 	segs := segment.NewRegistry(
 		segment.TimeCheck{Moderator: mod, MessageMax: cfg.MessageMax},
 		&segment.News{
@@ -217,6 +226,13 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 			MessageMax: cfg.MessageMax,
 			Timeout:    cfg.SourceTimeout,
 			SeenFor:    cfg.DidYouKnowSeenFor,
+		},
+		&segment.Releases{
+			Lister:     rel,
+			Org:        cfg.ReleasesOrg,
+			Title:      cfg.Title,
+			MessageMax: cfg.MessageMax,
+			Timeout:    cfg.SourceTimeout,
 		},
 		&segment.Rollouts{
 			Sources:    rolling,
@@ -366,7 +382,7 @@ func validate() error {
 	if err != nil {
 		return err
 	}
-	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{}, &segment.TabletennisStats{}, &segment.DidYouKnow{}, &segment.Rollouts{})
+	known := segment.NewRegistry(segment.TimeCheck{}, &segment.News{}, &segment.InfraFacts{}, &segment.DailySummary{}, &segment.TabletennisStats{}, &segment.DidYouKnow{}, &segment.Rollouts{}, &segment.Releases{})
 	for _, u := range s.Unknown(known.Has) {
 		slog.Warn("unknown segment, will be skipped", "slot", u, "known", known.Names())
 	}
