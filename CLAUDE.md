@@ -40,7 +40,8 @@ on a free panel. Concept: stuttgart-things/homerun-library#146.
   (schmetterpause `/api/statistics`, `internal/schmetterpause`),
   `did-you-know` (Backstage catalog, `internal/backstage`, seen-store),
   `infra-facts` (random pick, avoids recent), `rollouts` (`RolloutSource`
-  of the kubernetes/flux sources, grouped per namespace); `intro.go`: `Host` and
+  of the kubernetes/flux sources, grouped per namespace), `releases`
+  (GitHub org events, `internal/github`); `intro.go`: `Host` and
   `Registry.WithIntros` (slot param `intro: true`)
 - `internal/sources`: `Source` interface, `sources.yaml`; `Kubernetes`
   (typed client), `Flux` and `Harvester` (dynamic client)
