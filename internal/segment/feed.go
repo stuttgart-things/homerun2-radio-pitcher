@@ -51,7 +51,14 @@ type Headline struct {
 	ID        string // guid, id or link
 	Title     string
 	Published time.Time // zero when the feed gives none
+	// Description is the entry's text without markup, at most
+	// descriptionMax characters; empty when the feed gives none.
+	Description string
 }
+
+// descriptionMax caps a description: enough for a summary, short enough
+// for a prompt.
+const descriptionMax = 800
 
 // rss and atom cover RSS 2.0 (and 0.9x) and Atom 1.0.
 type rss struct {
@@ -61,6 +68,8 @@ type rss struct {
 		GUID    string `xml:"guid"`
 		PubDate string `xml:"pubDate"`
 		Date    string `xml:"http://purl.org/dc/elements/1.1/ date"`
+		Desc    string `xml:"description"`
+		Content string `xml:"http://purl.org/rss/1.0/modules/content/ encoded"`
 	} `xml:"channel>item"`
 }
 
@@ -73,6 +82,8 @@ type atom struct {
 		} `xml:"link"`
 		Updated   string `xml:"updated"`
 		Published string `xml:"published"`
+		Summary   string `xml:"summary"`
+		Content   string `xml:"content"`
 	} `xml:"entry"`
 }
 
@@ -95,7 +106,8 @@ func ParseFeed(feed string, r io.Reader) ([]Headline, error) {
 		}
 		for _, it := range doc.Items {
 			id := firstNonEmpty(it.GUID, it.Link, it.Title)
-			out = append(out, Headline{Feed: feed, ID: id, Title: cleanTitle(it.Title), Published: parseDate(firstNonEmpty(it.PubDate, it.Date))})
+			out = append(out, Headline{Feed: feed, ID: id, Title: cleanTitle(it.Title), Published: parseDate(firstNonEmpty(it.PubDate, it.Date)),
+				Description: cleanDescription(firstNonEmpty(it.Desc, it.Content))})
 		}
 	case "feed":
 		var doc atom
@@ -107,7 +119,8 @@ func ParseFeed(feed string, r io.Reader) ([]Headline, error) {
 			if len(e.Links) > 0 {
 				link = e.Links[0].Href
 			}
-			out = append(out, Headline{Feed: feed, ID: firstNonEmpty(e.ID, link, e.Title), Title: cleanTitle(e.Title), Published: parseDate(firstNonEmpty(e.Published, e.Updated))})
+			out = append(out, Headline{Feed: feed, ID: firstNonEmpty(e.ID, link, e.Title), Title: cleanTitle(e.Title), Published: parseDate(firstNonEmpty(e.Published, e.Updated)),
+				Description: cleanDescription(firstNonEmpty(e.Summary, e.Content))})
 		}
 	default:
 		return nil, fmt.Errorf("feed %s: neither RSS nor Atom (root element %q)", feed, root.XMLName.Local)
@@ -147,6 +160,22 @@ var tagRE = regexp.MustCompile(`<[^>]*>`)
 func cleanTitle(s string) string {
 	s = tagRE.ReplaceAllString(s, "")
 	return panel.Clean(html.UnescapeString(s))
+}
+
+// cleanDescription strips markup (escaped in the feed or not) and caps the
+// length at a word boundary.
+func cleanDescription(s string) string {
+	s = html.UnescapeString(s) // escaped HTML first, so the tags show
+	s = tagRE.ReplaceAllString(s, " ")
+	s = strings.Join(strings.Fields(html.UnescapeString(s)), " ")
+	s = panel.Clean(s)
+	if r := []rune(s); len(r) > descriptionMax {
+		s = string(r[:descriptionMax])
+		if i := strings.LastIndexByte(s, ' '); i > descriptionMax/2 {
+			s = s[:i]
+		}
+	}
+	return s
 }
 
 var dateLayouts = []string{
