@@ -168,6 +168,7 @@ func (n *News) Build(ctx context.Context, now time.Time, p schedule.Params) ([]I
 		items = append(items, Item{
 			Title:   n.Moderator.Headline(ctx, h.Title, n.Title),
 			Message: panel.Truncate(msg, n.MessageMax),
+			URL:     h.Link,
 		})
 	}
 	return items, nil

@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -51,6 +52,8 @@ type Server struct {
 	PreviewTimeout time.Duration
 	// Token enables the session controls (RADIO_UI_TOKEN); empty: read-only.
 	Token string
+	// Started is when the station started: the archive begins there.
+	Started time.Time
 
 	preview sync.Mutex // one preview at a time: it queries sources and the model
 }
@@ -62,6 +65,7 @@ func (s *Server) Handler() http.Handler {
 	static, _ := fs.Sub(staticFS, "static")
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
 	mux.HandleFunc("GET /{$}", s.index)
+	mux.HandleFunc("GET /aired", s.archive)
 	mux.HandleFunc("GET /ui/part/now", s.part("now"))
 	mux.HandleFunc("GET /ui/part/aired", s.part("aired"))
 	mux.HandleFunc("GET /ui/part/sources", s.part("sources"))
@@ -304,6 +308,63 @@ func params(p schedule.Params) string {
 
 func (s *Server) index(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "index", s.build(r))
+}
+
+// archiveView is the archive page: every aired card the director keeps,
+// filtered by segment and a search text.
+type archiveView struct {
+	view
+	Items   []director.Aired
+	Total   int
+	Keep    int
+	Started string
+	Segment string
+	Q       string
+}
+
+// SameDay reports whether t is today (the page shows the date otherwise).
+func (a archiveView) SameDay(t time.Time) bool {
+	y1, m1, d1 := t.In(a.Now.Location()).Date()
+	y2, m2, d2 := a.Now.Date()
+	return y1 == y2 && m1 == m2 && d1 == d2
+}
+
+func (s *Server) archive(w http.ResponseWriter, r *http.Request) {
+	av := archiveView{
+		view:    s.build(r),
+		Segment: strings.TrimSpace(r.URL.Query().Get("segment")),
+		Q:       strings.TrimSpace(r.URL.Query().Get("q")),
+	}
+	if !s.Started.IsZero() {
+		av.Started = s.Started.In(s.loc()).Format("02.01. 15:04")
+	}
+	if s.Director != nil {
+		av.Keep = s.Director.Archive
+		if av.Keep <= 0 {
+			av.Keep = director.DefaultArchive
+		}
+		all := s.Director.Recent(av.Keep)
+		av.Total = len(all)
+		// the filter offers what aired, besides the registered segments
+		for _, a := range all {
+			if !slices.Contains(av.Segments, a.Segment) {
+				av.Segments = append(av.Segments, a.Segment)
+			}
+		}
+		sort.Strings(av.Segments)
+		q := strings.ToLower(av.Q)
+		for _, a := range all {
+			if av.Segment != "" && a.Segment != av.Segment {
+				continue
+			}
+			if q != "" && !strings.Contains(strings.ToLower(a.Title+" "+a.Message), q) {
+				continue
+			}
+			a.At = a.At.In(s.loc())
+			av.Items = append(av.Items, a)
+		}
+	}
+	s.render(w, "archive", av)
 }
 
 func (s *Server) part(name string) http.HandlerFunc {

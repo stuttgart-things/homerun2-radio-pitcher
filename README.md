@@ -36,6 +36,7 @@ Each programme item is one homerun2 message. The led-catcher renders it as a
 | `title` | short and fitted to the card: by default 4 lines of 16 characters (the catcher's 4x6 font), shortened at a word boundary with `…` |
 | `message` | the scrolling line, at most 120 characters (`RADIO_MESSAGE_MAX`) |
 | `tags` | `segment=<name>`, e.g. `segment=news`, then the slot's `card-tags` (e.g. `segment=news,show=news`). A catcher rule can filter on them with `tags: [segment=news]` |
+| `url` | the article of a news card (the feed's link); empty for the other segments |
 | `author` | `radio` (`RADIO_AUTHOR`), the card's footer |
 | `timestamp` | when the item was pitched, RFC 3339 |
 
@@ -357,6 +358,7 @@ failed call airs the fixed text.
 | `RADIO_SEVERITY` | `INFO` | message `severity` |
 | `RADIO_AUTHOR` | `radio` | message `author` |
 | `RADIO_ITEM_SPACING` | `15s` | pause between the items of one slot |
+| `RADIO_ARCHIVE_SIZE` | `300` | how many aired cards the UI's archive keeps (in memory) |
 | `RADIO_TITLE_LINES` / `RADIO_TITLE_WIDTH` | `4` / `16` | title space; `3` / `12` keeps titles in the catcher's larger 5x7 font |
 | `RADIO_MESSAGE_MAX` | `120` | scrolling line, characters |
 | `RADIO_NEWS_FEEDS` | | `name=url,name=url` (RSS 2.0 or Atom); an entry without `name=` is named after its host |
@@ -428,7 +430,11 @@ A read-only page (htmx) for the people next to the panel:
 - **Clock**: the slots of the clock on air, the next one highlighted;
   segments that do not exist yet are marked as skipped
 - **Last aired**: the last 20 cards with their time and segment (since the
-  start of the pod)
+  start of the pod); a card with a link (a news article) has `↗`
+- **Archive** (`<BASE_PATH>/aired`, linked from Last aired): up to
+  `RADIO_ARCHIVE_SIZE` cards since the start of the pod, newest first,
+  filtered by segment and a search text over title and scrolling line, with
+  the article links. In memory: a restart empties it
 - **Sources**: each source's last query: when, how long, how many facts, or
   the error. Sources are queried when infra-facts airs, not by the page.
 - **Preview**: builds a segment now with parameters (`count=2 feeds=cncf`),

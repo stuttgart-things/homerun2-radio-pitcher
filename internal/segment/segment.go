@@ -16,6 +16,9 @@ import (
 type Item struct {
 	Title   string
 	Message string
+	// URL points to more, e.g. the article of a headline; optional. It goes
+	// into the message's url and the UI's archive links it.
+	URL string
 }
 
 // Segment builds items for a slot. An empty result is not an error: there was
