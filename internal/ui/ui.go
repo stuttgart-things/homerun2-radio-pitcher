@@ -24,6 +24,7 @@ import (
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/schedule"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/segment"
 	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/sources"
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/spots"
 )
 
 //go:embed templates/*.html
@@ -54,6 +55,8 @@ type Server struct {
 	Token string
 	// Started is when the station started: the archive begins there.
 	Started time.Time
+	// Spots is the pool of spots.yaml, listed under /spots; nil: no page.
+	Spots []spots.Spot
 
 	preview sync.Mutex // one preview at a time: it queries sources and the model
 }
@@ -66,6 +69,9 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
 	mux.HandleFunc("GET /{$}", s.index)
 	mux.HandleFunc("GET /aired", s.archive)
+	if len(s.Spots) > 0 {
+		mux.HandleFunc("GET /spots", s.spotsPage)
+	}
 	mux.HandleFunc("GET /ui/part/now", s.part("now"))
 	mux.HandleFunc("GET /ui/part/aired", s.part("aired"))
 	mux.HandleFunc("GET /ui/part/sources", s.part("sources"))
@@ -112,6 +118,7 @@ type view struct {
 	Sources  []sources.Status
 	Segments []string
 	Card     panel.Title
+	HasSpots bool // the spots pool page exists
 }
 
 type showView struct {
@@ -177,6 +184,7 @@ func (s *Server) build(r *http.Request) view {
 		Zone:        s.loc().String(),
 		Card:        s.Title,
 		Segments:    s.Segments.Names(),
+		HasSpots:    len(s.Spots) > 0,
 	}
 	if s.Director != nil {
 		v.OnAir = s.Director.OnAir()
@@ -323,11 +331,7 @@ type archiveView struct {
 }
 
 // SameDay reports whether t is today (the page shows the date otherwise).
-func (a archiveView) SameDay(t time.Time) bool {
-	y1, m1, d1 := t.In(a.Now.Location()).Date()
-	y2, m2, d2 := a.Now.Date()
-	return y1 == y2 && m1 == m2 && d1 == d2
-}
+func (a archiveView) SameDay(t time.Time) bool { return sameDay(t, a.Now) }
 
 func (s *Server) archive(w http.ResponseWriter, r *http.Request) {
 	av := archiveView{

@@ -95,6 +95,8 @@ func (p Params) Strings(key string) []string {
 				out = append(out, s)
 			}
 		}
+	case int: // "ids=7" on the command line or in the UI parses as a number
+		out = append(out, strconv.Itoa(l))
 	}
 	return out
 }

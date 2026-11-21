@@ -63,7 +63,7 @@
   <tr><th>time</th><th>segment</th><th>card</th></tr>
   {{range .Aired}}<tr><td>{{.At.Format "15:04:05"}}</td><td>{{.Segment}}</td><td class="msg"><b>{{.Title}}</b><br><span class="muted">{{.Message}}</span>{{if .URL}} <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">↗</a>{{end}}{{if .Err}}<br><span class="err">{{.Err}}</span>{{end}}</td></tr>{{end}}
 </table>
-<p><a href="{{.Base}}/aired">All aired cards, search →</a></p>{{else}}<p class="muted">Nothing aired since the start.</p>{{end}}
+<p><a href="{{.Base}}/aired">All aired cards, search →</a>{{if .HasSpots}} · <a href="{{.Base}}/spots">Spots pool →</a>{{end}}</p>{{else}}<p class="muted">Nothing aired since the start.</p>{{end}}
 {{end}}
 
 {{define "sources"}}
@@ -223,7 +223,7 @@
 <body>
 <header class="header-bar">
   <div><h1>HOMERUN² RADIO</h1><div class="subtitle">aired cards</div></div>
-  <div class="meta"><a href="{{.Base}}/" style="color:inherit">← programme</a> · {{.Zone}} · {{.Version}}</div>
+  <div class="meta"><a href="{{.Base}}/" style="color:inherit">← programme</a>{{if .HasSpots}} · <a href="{{.Base}}/spots" style="color:inherit">spots</a>{{end}} · {{.Zone}} · {{.Version}}</div>
 </header>
 <main>
   <section class="wide">
@@ -239,6 +239,40 @@
       <tr><th>time</th><th>segment</th><th>card</th></tr>
       {{range .Items}}<tr><td class="nowrap">{{if $.SameDay .At}}{{.At.Format "15:04:05"}}{{else}}{{.At.Format "02.01. 15:04"}}{{end}}</td><td class="nowrap">{{.Segment}}</td><td class="msg"><b>{{.Title}}</b><br><span class="muted">{{.Message}}</span>{{if .URL}} <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">↗</a>{{end}}{{if .Err}}<br><span class="err">{{.Err}}</span>{{end}}</td></tr>{{end}}
     </table>{{else}}<p class="muted">Nothing aired{{if or .Segment .Q}} that matches{{end}}.</p>{{end}}
+  </section>
+</main>
+</body>
+</html>{{end}}
+
+
+{{define "spots"}}<!DOCTYPE html>
+<html lang="en">
+{{template "head" .}}
+<body>
+<header class="header-bar">
+  <div><h1>HOMERUN² RADIO</h1><div class="subtitle">spots pool</div></div>
+  <div class="meta"><a href="{{.Base}}/" style="color:inherit">← programme</a> · <a href="{{.Base}}/aired?segment=spots" style="color:inherit">aired spots</a> · {{.Zone}} · {{.Version}}</div>
+</header>
+<main>
+  <section class="wide">
+    <h2>Spots <span class="muted" style="text-transform:none;letter-spacing:0">· {{len .Pool}} in spots.yaml, {{.Active}} may air now; the pool changes by PR</span></h2>
+    <p class="muted">A spots slot picks among the spots that may air now, by weight, and leaves out the last few it aired.</p>
+    <div id="notice"></div>
+    <table>
+      <tr><th>spot</th><th>card</th><th>weight</th><th>when</th><th>aired</th>{{if .LoggedIn}}<th></th>{{end}}</tr>
+      {{range .Pool}}<tr{{if not .ActiveNow}} class="muted"{{end}}>
+        <td class="nowrap"><b>{{.ID}}</b><br><span class="muted">{{.Kind}}</span></td>
+        <td><div class="card">
+          <div class="title{{if not .Card.Fits}} overflow{{end}}">{{join .Card.Lines "\n"}}</div>
+          <div class="scroll" title="scrolling line">{{.Card.Message}}</div>
+        </div></td>
+        <td class="nowrap">{{if eq .Weight 0}}off{{else}}{{.Weight}}{{end}}</td>
+        <td>{{.When}}<br><span class="muted">{{if .ActiveNow}}may air now{{else}}not now{{end}}</span></td>
+        <td class="nowrap">{{if .Aired}}{{.Aired}}×<br><span class="muted">last {{if $.SameDay .LastAired}}{{.LastAired.Format "15:04"}}{{else}}{{.LastAired.Format "02.01. 15:04"}}{{end}}</span>{{else}}<span class="muted">not yet</span>{{end}}</td>
+        {{if $.LoggedIn}}<td>{{if .ActiveNow}}<form hx-post="{{$.Base}}/ui/control/air" hx-target="#notice" hx-select=".notice"><input type="hidden" name="segment" value="spots"><input type="hidden" name="params" value="ids={{.ID}}"><button type="submit">Air now</button></form>{{end}}</td>{{end}}
+      </tr>{{end}}
+    </table>
+    {{if not .LoggedIn}}{{if .Controls}}<p class="muted">Unlock the controls on the <a href="{{.Base}}/">programme page</a> to air a spot now.</p>{{end}}{{end}}
   </section>
 </main>
 </body>
