@@ -1,3 +1,10 @@
+# [0.19.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.18.0...v0.19.0) (2026-11-21)
+
+
+### Features
+
+* spots pool page in the programme UI ([68e444b](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/68e444bf70fb118391b430b954b67d791c7ada7e)), closes [#27](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/27)
+
 # [0.18.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.17.0...v0.18.0) (2026-11-19)
 
 
