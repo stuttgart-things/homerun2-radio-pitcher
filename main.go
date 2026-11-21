@@ -100,6 +100,7 @@ type station struct {
 	director *director.Director
 	segments segment.Registry
 	sources  []*sources.Tracked
+	spots    []spots.Spot
 }
 
 func newStation(cfg *config.Config, dryRun bool) (*station, error) {
@@ -275,7 +276,7 @@ func newStation(cfg *config.Config, dryRun bool) (*station, error) {
 		Archive:  cfg.ArchiveSize,
 		Observe:  handlers.Observe,
 	}
-	return &station{cfg: cfg, watcher: w, pitcher: p, director: d, segments: segs, sources: tracked}, nil
+	return &station{cfg: cfg, watcher: w, pitcher: p, director: d, segments: segs, sources: tracked, spots: pool}, nil
 }
 
 func serve() error {
@@ -312,6 +313,7 @@ func serve() error {
 			Title:    cfg.Title,
 			Token:    cfg.UIToken,
 			Started:  time.Now(),
+			Spots:    st.spots,
 		}).Handler()
 		slog.Info("programme UI on", "path", cfg.BasePath+"/", "controls", cfg.UIToken != "")
 	}

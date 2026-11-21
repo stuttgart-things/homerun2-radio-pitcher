@@ -181,6 +181,9 @@ func TestParams(t *testing.T) {
 	if got := strings.Join(p.Strings("csv"), "|"); got != "x|y|z" {
 		t.Fatalf("csv = %q", got)
 	}
+	if got := strings.Join(p.Strings("count"), "|"); got != "3" { // ids=7 parses as a number
+		t.Fatalf("number = %q", got)
+	}
 }
 
 // The example shipped in the repository must stay valid.

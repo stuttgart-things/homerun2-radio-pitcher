@@ -441,6 +441,11 @@ A read-only page (htmx) for the people next to the panel:
   `RADIO_ARCHIVE_SIZE` cards since the start of the pod, newest first,
   filtered by segment and a search text over title and scrolling line, with
   the article links. In memory: a restart empties it
+- **Spots** (`<BASE_PATH>/spots`, with `RADIO_SPOTS_PATH`): the pool of
+  `spots.yaml`, each spot as the panel shows it, with its weight, its
+  limits (`weekdays`, `between`, `from`/`until`), whether it may air now,
+  and how often and when it aired since the start of the pod. With the
+  controls unlocked, a spot that may air now has **Air now**
 - **Sources**: each source's last query: when, how long, how many facts, or
   the error. Sources are queried when infra-facts airs, not by the page.
 - **Preview**: builds a segment now with parameters (`count=2 feeds=cncf`),

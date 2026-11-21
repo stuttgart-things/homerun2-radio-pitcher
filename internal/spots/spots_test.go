@@ -114,3 +114,21 @@ func TestExampleFile(t *testing.T) {
 		t.Fatalf("examples/spots.yaml: %v", err)
 	}
 }
+
+func TestWhen(t *testing.T) {
+	ps, err := Parse([]byte(`spots:
+  - {id: a, title: A}
+  - {id: b, title: B, weekdays: [mon, fri], between: "11:00-12:00"}
+  - {id: c, title: C, from: "2026-11-20", until: "2026-12-02"}
+  - {id: d, title: D, until: "2026-12-02"}
+`), 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"always", "mon, fri · 11:00-12:00", "2026-11-20 – 2026-12-02", "until 2026-12-02"}
+	for i, s := range ps {
+		if got := s.When(); got != want[i] {
+			t.Errorf("%s: When() = %q, want %q", s.ID, got, want[i])
+		}
+	}
+}

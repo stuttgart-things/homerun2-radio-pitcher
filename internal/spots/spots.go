@@ -230,3 +230,27 @@ func clock(s string) (int, error) {
 	}
 	return hh*60 + mm, nil
 }
+
+// When describes the spot's limits for people, "always" without any:
+// "mon, tue · 11:00-12:00 · 2026-11-20 – 2026-12-02".
+func (s Spot) When() string {
+	var parts []string
+	if len(s.Weekdays) > 0 {
+		parts = append(parts, strings.Join(s.Weekdays, ", "))
+	}
+	if s.Between != "" {
+		parts = append(parts, s.Between)
+	}
+	switch {
+	case s.From != "" && s.Until != "":
+		parts = append(parts, s.From+" – "+s.Until)
+	case s.From != "":
+		parts = append(parts, "from "+s.From)
+	case s.Until != "":
+		parts = append(parts, "until "+s.Until)
+	}
+	if len(parts) == 0 {
+		return "always"
+	}
+	return strings.Join(parts, " · ")
+}
