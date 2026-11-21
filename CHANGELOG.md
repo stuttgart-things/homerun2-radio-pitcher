@@ -1,3 +1,10 @@
+# [0.21.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.20.0...v0.21.0) (2026-11-21)
+
+
+### Features
+
+* jingle slot param plays a station-ID picture before the slot ([c898633](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/c8986339846cff3731959f0786b45e7652c5ca15)), closes [#4](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/4)
+
 # [0.20.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.19.0...v0.20.0) (2026-11-21)
 
 
