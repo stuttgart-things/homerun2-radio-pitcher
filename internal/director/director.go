@@ -40,6 +40,7 @@ type Aired struct {
 	Title   string
 	Message string
 	URL     string
+	Image   string
 	ID      string
 	Err     string
 }
@@ -259,7 +260,7 @@ func (d *Director) Air(ctx context.Context, name string, params schedule.Params,
 		msg := d.Message(name, it, at, tags...)
 		id, err := d.Pitcher.Pitch(ctx, msg)
 		d.observe(name, err)
-		d.record(Aired{At: at, Segment: name, Title: msg.Title, Message: msg.Message, URL: msg.URL, ID: id, Err: errText(err)})
+		d.record(Aired{At: at, Segment: name, Title: msg.Title, Message: msg.Message, URL: msg.URL, Image: it.Image, ID: id, Err: errText(err)})
 		if err != nil {
 			d.logger().Error("pitch failed", "segment", name, "title", msg.Title, "error", err)
 			continue
@@ -277,8 +278,12 @@ func (d *Director) Air(ctx context.Context, name string, params schedule.Params,
 
 // Message turns an item into the homerun2 message the catcher renders.
 // tags (key=value) follow segment=<seg>, e.g. show=news for a profile rule
-// that holds those cards longer.
+// that holds those cards longer; an item's image adds gif=<image>.
 func (d *Director) Message(seg string, it segment.Item, at time.Time, tags ...string) homerun.Message {
+	all := append([]string{"segment=" + seg}, tags...)
+	if it.Image != "" {
+		all = append(all, "gif="+it.Image)
+	}
 	return homerun.Message{
 		Title:     it.Title,
 		Message:   it.Message,
@@ -286,7 +291,7 @@ func (d *Director) Message(seg string, it segment.Item, at time.Time, tags ...st
 		System:    d.Station.System,
 		Author:    d.Station.Author,
 		Timestamp: at.Format(time.RFC3339),
-		Tags:      strings.Join(append([]string{"segment=" + seg}, tags...), ","),
+		Tags:      strings.Join(all, ","),
 		URL:       it.URL,
 	}
 }

@@ -61,7 +61,7 @@
 <h2>Last aired</h2>
 {{if .Aired}}<table>
   <tr><th>time</th><th>segment</th><th>card</th></tr>
-  {{range .Aired}}<tr><td>{{.At.Format "15:04:05"}}</td><td>{{.Segment}}</td><td class="msg"><b>{{.Title}}</b><br><span class="muted">{{.Message}}</span>{{if .URL}} <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">↗</a>{{end}}{{if .Err}}<br><span class="err">{{.Err}}</span>{{end}}</td></tr>{{end}}
+  {{range .Aired}}<tr><td>{{.At.Format "15:04:05"}}</td><td>{{.Segment}}</td><td class="msg"><b>{{.Title}}</b><br><span class="muted">{{.Message}}</span>{{if .Image}} <span class="muted" title="played before the card">▶ {{.Image}}</span>{{end}}{{if .URL}} <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">↗</a>{{end}}{{if .Err}}<br><span class="err">{{.Err}}</span>{{end}}</td></tr>{{end}}
 </table>
 <p><a href="{{.Base}}/aired">All aired cards, search →</a>{{if .HasSpots}} · <a href="{{.Base}}/spots">Spots pool →</a>{{end}}</p>{{else}}<p class="muted">Nothing aired since the start.</p>{{end}}
 {{end}}
@@ -237,7 +237,7 @@
     <p class="muted">{{len .Items}} of {{.Total}} cards</p>
     {{if .Items}}<table>
       <tr><th>time</th><th>segment</th><th>card</th></tr>
-      {{range .Items}}<tr><td class="nowrap">{{if $.SameDay .At}}{{.At.Format "15:04:05"}}{{else}}{{.At.Format "02.01. 15:04"}}{{end}}</td><td class="nowrap">{{.Segment}}</td><td class="msg"><b>{{.Title}}</b><br><span class="muted">{{.Message}}</span>{{if .URL}} <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">↗</a>{{end}}{{if .Err}}<br><span class="err">{{.Err}}</span>{{end}}</td></tr>{{end}}
+      {{range .Items}}<tr><td class="nowrap">{{if $.SameDay .At}}{{.At.Format "15:04:05"}}{{else}}{{.At.Format "02.01. 15:04"}}{{end}}</td><td class="nowrap">{{.Segment}}</td><td class="msg"><b>{{.Title}}</b><br><span class="muted">{{.Message}}</span>{{if .Image}} <span class="muted" title="played before the card">▶ {{.Image}}</span>{{end}}{{if .URL}} <a href="{{.URL}}" target="_blank" rel="noopener noreferrer">↗</a>{{end}}{{if .Err}}<br><span class="err">{{.Err}}</span>{{end}}</td></tr>{{end}}
     </table>{{else}}<p class="muted">Nothing aired{{if or .Segment .Q}} that matches{{end}}.</p>{{end}}
   </section>
 </main>
@@ -265,7 +265,7 @@
         <td><div class="card">
           <div class="title{{if not .Card.Fits}} overflow{{end}}">{{join .Card.Lines "\n"}}</div>
           <div class="scroll" title="scrolling line">{{.Card.Message}}</div>
-        </div></td>
+        </div>{{if .Image}}<span class="muted" title="the catcher plays it before the card">▶ {{.Image}}</span>{{end}}</td>
         <td class="nowrap">{{if eq .Weight 0}}off{{else}}{{.Weight}}{{end}}</td>
         <td>{{.When}}<br><span class="muted">{{if .ActiveNow}}may air now{{else}}not now{{end}}</span></td>
         <td class="nowrap">{{if .Aired}}{{.Aired}}×<br><span class="muted">last {{if $.SameDay .LastAired}}{{.LastAired.Format "15:04"}}{{else}}{{.LastAired.Format "02.01. 15:04"}}{{end}}</span>{{else}}<span class="muted">not yet</span>{{end}}</td>

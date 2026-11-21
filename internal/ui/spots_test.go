@@ -30,6 +30,11 @@ const pool = `spots:
   - id: retired
     title: "Old news <b>"
     weight: 0
+  - id: evening
+    kind: gif
+    image: sunset.gif
+    title: "Good evening"
+    between: "17:00-23:00"
 `
 
 func spotsServer(t *testing.T, token string) *httptest.Server {
@@ -69,7 +74,7 @@ func TestSpotsPage(t *testing.T) {
 		t.Fatalf("status %d", code)
 	}
 	for _, want := range []string{
-		"3 in spots.yaml, 2 may air now",
+		"4 in spots.yaml, 2 may air now",
 		"mon, tue, wed, thu, fri · 11:00-12:00",
 		"Canteen today: pasta",
 		"2×",                   // lunch aired twice
@@ -77,6 +82,7 @@ func TestSpotsPage(t *testing.T) {
 		"Old news &lt;b&gt;",   // escaped
 		"<td class=\"nowrap\">off</td>",
 		"Unlock the controls",
+		"▶ sunset.gif",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("spots page lacks %q", want)

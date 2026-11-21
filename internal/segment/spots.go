@@ -17,8 +17,8 @@ import (
 // active now (weekdays, between, from/until), avoiding the last Recent
 // aired. Fixed texts from the file, never reworded or cut.
 //
-// Parameters: count (default 1), kinds (text, quote; default both), ids
-// (only these spots).
+// Parameters: count (default 1), kinds (text, quote, gif; default all), ids
+// (only these spots). A gif spot's card carries its image (Item.Image).
 type Spots struct {
 	Pool  []spots.Spot
 	Title panel.Title
@@ -90,7 +90,7 @@ func (s *Spots) Build(ctx context.Context, now time.Time, p schedule.Params) ([]
 		}
 		recent = append(recent, chosen.ID)
 		title, msg := chosen.Card()
-		items = append(items, Item{Title: s.Title.Fit(title), Message: msg})
+		items = append(items, Item{Title: s.Title.Fit(title), Message: msg, Image: chosen.Image})
 	}
 	if !IsPreview(ctx) {
 		if len(recent) > 50 {

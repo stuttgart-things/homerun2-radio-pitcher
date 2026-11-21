@@ -259,3 +259,14 @@ func TestTickAirsExtraThenClock(t *testing.T) {
 		t.Fatalf("night aired time-check")
 	}
 }
+
+func TestMessageImageTag(t *testing.T) {
+	d := &Director{Station: Station{System: "radio", Severity: "INFO", Author: "radio"}}
+	m := d.Message("spots", segment.Item{Title: "Evening", Message: "Evening", Image: "sunset.gif"}, time.Now(), "show=news")
+	if m.Tags != "segment=spots,show=news,gif=sunset.gif" {
+		t.Errorf("tags = %q", m.Tags)
+	}
+	if m := d.Message("news", segment.Item{Title: "t"}, time.Now()); m.Tags != "segment=news" {
+		t.Errorf("tags without image = %q", m.Tags)
+	}
+}

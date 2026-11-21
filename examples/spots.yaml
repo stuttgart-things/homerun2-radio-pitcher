@@ -9,6 +9,11 @@
 #   kind: text (default)  title, optional message (else the title scrolls)
 #   kind: quote           text and author; the card is "Quote: <author>"
 #                         and the scrolling line “<text>” <author>
+#   kind: gif             image, title, optional message: the catcher plays
+#                         the image, then the card (needs the radio-gif
+#                         rule in its profile; without it the card airs
+#                         alone). image: a file in the catcher's
+#                         visual_aid/ or an https:// URL
 #   weight     how often it comes up against the others (default 1, 0 off)
 #   weekdays   [mon, tue, wed, thu, fri, sat, sun]; empty: every day
 #   between    "11:00-12:00" (end exclusive, may cross midnight)
@@ -46,3 +51,10 @@ spots:
     message: "No deploys after 15:00 on a Friday. Probably."
     weekdays: [fri]
     weight: 2
+  - id: evening
+    kind: gif
+    image: sunset.gif
+    title: "Good evening"
+    message: "The sun is down. Time to push, merge and go home"
+    weekdays: [mon, tue, wed, thu, fri]
+    between: "17:00-19:00"
