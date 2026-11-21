@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/panel"
 )
 
 // ParseParams reads "key=value" pairs (as `once` and the UI's preview take
@@ -142,8 +144,13 @@ func (p Params) validate() error {
 		if k, v, ok := strings.Cut(t, "="); !ok || strings.TrimSpace(k) == "" || strings.TrimSpace(v) == "" || strings.Contains(t, " ") {
 			return fmt.Errorf("card-tags: %q, want key=value without spaces", t)
 		}
-		if strings.HasPrefix(t, "segment=") {
-			return fmt.Errorf("card-tags: %q, the director sets segment= itself", t)
+		if strings.HasPrefix(t, "segment=") || strings.HasPrefix(t, "gif=") {
+			return fmt.Errorf("card-tags: %q, the director sets segment= and gif= itself", t)
+		}
+	}
+	if v, ok := p["jingle"]; ok {
+		if err := panel.CheckImage(strings.TrimSpace(fmt.Sprint(v))); err != nil {
+			return fmt.Errorf("jingle: %w", err)
 		}
 	}
 	return nil
