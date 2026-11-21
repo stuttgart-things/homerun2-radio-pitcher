@@ -1,3 +1,10 @@
+# [0.20.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.19.0...v0.20.0) (2026-11-21)
+
+
+### Features
+
+* gif spots play a picture before their card ([26bd63e](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/26bd63eb95bcd8cc3b9f3981da030bf1504d0d41)), closes [#148](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/148) [#4](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/4) [#27](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/27)
+
 # [0.19.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.18.0...v0.19.0) (2026-11-21)
 
 
