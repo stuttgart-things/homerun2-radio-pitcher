@@ -33,7 +33,8 @@ on a free panel. Concept: stuttgart-things/homerun-library#146.
   `ShowAt`, `Watcher` (reload on change, keeps the last good version)
 - `internal/director`: minute ticker, once per minute, skips a slot while
   the previous one is on air, spaces the items of a slot, builds the
-  `homerun.Message`
+  `homerun.Message` (slot `card-tags`, `jingle` and an item's image as
+  tag `gif=<image>` for the catcher's radio-gif rule)
 - `internal/segment`: `Segment` interface and `Registry`; `time-check`,
   `news` (own RSS/Atom parser, seen-store with TTL), `daily-summary`
   (homerun2-scout digest, `internal/scout`), `tabletennis-stats`

@@ -63,3 +63,29 @@ clock:
 		t.Fatalf("spacing: got %v, want %v", *slept, want)
 	}
 }
+
+func TestJingleOnFirstCard(t *testing.T) {
+	tc := &countSeg{name: "time-check", n: 1}
+	news := &countSeg{name: "news", n: 1}
+	d, rec, _ := setup(t, `
+clock:
+  ":00":
+    - { segment: time-check, jingle: station-id.gif }
+    - { segment: news, count: 2, card-tags: [show=news] }
+`, tc, news)
+	d.Tick(context.Background(), time.Date(2026, 11, 17, 14, 0, 0, 0, time.UTC), false)
+	var tags []string
+	for _, m := range rec.msgs {
+		tags = append(tags, m.Tags)
+	}
+	want := []string{"segment=time-check,gif=station-id.gif", "segment=news,show=news", "segment=news,show=news"}
+	if !reflect.DeepEqual(tags, want) {
+		t.Fatalf("tags:\n got %v\nwant %v", tags, want)
+	}
+	if a := d.Recent(1)[0]; a.Image != "" {
+		t.Errorf("newest aired = %+v", a)
+	}
+	if a := d.Recent(3)[2]; a.Image != "station-id.gif" {
+		t.Errorf("first aired image = %q", a.Image)
+	}
+}

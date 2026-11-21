@@ -16,6 +16,8 @@ import (
 	"unicode/utf8"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/stuttgart-things/homerun2-radio-pitcher/internal/panel"
 )
 
 // Kinds of spot.
@@ -169,7 +171,7 @@ func Parse(data []byte, maxLen int) ([]Spot, error) {
 				bad("text and author belong to quote spots")
 			}
 			if s.Kind == KindGIF {
-				if err := CheckImage(s.Image); err != nil {
+				if err := panel.CheckImage(s.Image); err != nil {
 					bad("%v", err)
 				}
 			} else if s.Image != "" {
@@ -233,25 +235,6 @@ func Parse(data []byte, maxLen int) ([]Spot, error) {
 		return nil, errors.Join(errs...)
 	}
 	return f.Spots, nil
-}
-
-// CheckImage checks a picture for the catcher: a file name in its
-// visual_aid/ (no path) or an https:// URL, without a comma (it travels in
-// the comma-separated tags).
-func CheckImage(image string) error {
-	switch {
-	case image == "":
-		return errors.New("needs an image: a file in the catcher's visual_aid/ or an https:// URL")
-	case strings.ContainsAny(image, ", \t\n"):
-		return fmt.Errorf("image %q has a comma or a space", image)
-	case strings.HasPrefix(image, "https://"):
-		return nil
-	case strings.Contains(image, "://"):
-		return fmt.Errorf("image %q: only https:// URLs", image)
-	case strings.ContainsAny(image, "/\\") || strings.HasPrefix(image, "."):
-		return fmt.Errorf("image %q: a file name in visual_aid/, not a path", image)
-	}
-	return nil
 }
 
 func clock(s string) (int, error) {

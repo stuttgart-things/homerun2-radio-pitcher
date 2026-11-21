@@ -246,8 +246,14 @@ func (d *Director) Air(ctx context.Context, name string, params schedule.Params,
 	}
 	spacing := params.Duration("spacing", d.Spacing)
 	tags := params.Strings("card-tags")
+	// a jingle plays before the slot's first card (the catcher's radio-gif
+	// rule), unless that card brings its own picture
+	jingle := strings.TrimSpace(params.String("jingle", ""))
 	pitched := 0
 	for i, it := range items {
+		if i == 0 && jingle != "" && it.Image == "" {
+			it.Image = jingle
+		}
 		if i > 0 {
 			if err := d.sleep(ctx, spacing); err != nil {
 				return pitched, err

@@ -359,7 +359,7 @@ func TestParseBlock(t *testing.T) {
 clock:
   ":00":
     - { segment: time-check, casual: true }
-    - { segment: news, count: 6, mix: true, spacing: 25s, card-tags: [show=news] }
+    - { segment: news, count: 6, mix: true, spacing: 25s, card-tags: [show=news], jingle: "https://example.com/id.gif" }
   ":15": { segment: infra-facts }
 `))
 	if err != nil {
@@ -388,6 +388,9 @@ func TestParseBlockErrors(t *testing.T) {
 		"bad tag":           "clock:\n  \":00\": { segment: news, card-tags: [show] }\n",
 		"tag with space":    "clock:\n  \":00\": { segment: news, card-tags: [\"show=the news\"] }\n",
 		"segment tag":       "clock:\n  \":00\": { segment: news, card-tags: [segment=x] }\n",
+		"gif tag":           "clock:\n  \":00\": { segment: news, card-tags: [gif=a.gif] }\n",
+		"jingle path":       "clock:\n  \":00\": { segment: news, jingle: ../a.gif }\n",
+		"jingle empty":      "clock:\n  \":00\": { segment: news, jingle: \"\" }\n",
 		"bad count in list": "clock:\n  \":00\":\n    - { segment: time-check }\n    - { segment: news, count: 0 }\n",
 	} {
 		if _, err := Parse(strings.NewReader(doc)); err == nil {

@@ -35,7 +35,7 @@ Each programme item is one homerun2 message. The led-catcher renders it as a
 | `severity` | `INFO` (`RADIO_SEVERITY`) |
 | `title` | short and fitted to the card: by default 4 lines of 16 characters (the catcher's 4x6 font), shortened at a word boundary with `…` |
 | `message` | the scrolling line, at most 120 characters (`RADIO_MESSAGE_MAX`) |
-| `tags` | `segment=<name>`, e.g. `segment=news`, then the slot's `card-tags` (e.g. `segment=news,show=news`), then `gif=<image>` for a card with a picture (a gif spot). A catcher rule can filter on them with `tags: [segment=news]` |
+| `tags` | `segment=<name>`, e.g. `segment=news`, then the slot's `card-tags` (e.g. `segment=news,show=news`), then `gif=<image>` for a card with a picture (a gif spot, or the slot's `jingle` on its first card). A catcher rule can filter on them with `tags: [segment=news]` |
 | `url` | the article of a news card (the feed's link), the release page of a releases card; empty for the other segments |
 | `author` | `radio` (`RADIO_AUTHOR`), the card's footer |
 | `timestamp` | when the item was pitched, RFC 3339 |
@@ -103,6 +103,11 @@ the last good version stays on air.
 #              rule with `tags: [show=news]` and a longer `duration` holds
 #              these cards longer. The display time is the catcher's; keep
 #              spacing a few seconds above it.
+#   jingle     a station-ID picture played before the slot's first card: a
+#              file in the catcher's visual_aid/ or an https:// URL. The
+#              card carries gif=<image>; the catcher's radio-gif rule plays
+#              it (see Message format). A slot with nothing to say plays no
+#              jingle; a card with its own picture (a gif spot) keeps it.
 clock:
   ":00": { segment: time-check }
   ":05": { segment: news, count: 2 }
@@ -161,7 +166,7 @@ Validation reports every problem at once: a minute outside `:00`–`:59`, the
 same minute twice, a slot without `segment` (also inside a block), an empty
 block, a list as `default`, `count` outside 1–10, `spacing` that is no
 duration from 1s to 2m, a `card-tags` entry that is not `key=value` or sets
-`segment=`, a malformed
+`segment=` or `gif=`, a `jingle` that is no file name or https:// URL, a malformed
 window, overlapping windows, a show without a name or with a clock that is not
 in `clocks`, an extra without `segment` or with `at` outside its window, or a
 brightness outside 0–100. A slot or extra naming a segment that does not
