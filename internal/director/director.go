@@ -177,13 +177,20 @@ func (d *Director) Tick(ctx context.Context, now time.Time, async bool) {
 		// by the spacing of the last slot that aired something; a slot with
 		// nothing to say leaves no gap
 		var gap time.Duration
-		for _, slot := range slots {
+		start := time.Now()
+		for i, slot := range slots {
 			if gap > 0 {
 				if err := d.sleep(ctx, gap); err != nil {
 					return
 				}
 			}
-			n, err := d.Air(ctx, slot.Segment, slot.Params, now)
+			// a later slot of the block airs (and is built and stamped) when
+			// it really goes on air, not at the minute's start
+			at := now
+			if i > 0 {
+				at = now.Add(time.Since(start))
+			}
+			n, err := d.Air(ctx, slot.Segment, slot.Params, at)
 			if err != nil {
 				d.logger().Warn("slot not aired", "segment", slot.Segment, "error", err)
 			}
