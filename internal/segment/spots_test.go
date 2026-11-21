@@ -79,3 +79,19 @@ func TestSpotsParamsAndPreview(t *testing.T) {
 		t.Fatalf("no pool: %v %v", items, err)
 	}
 }
+
+func TestSpotsGIFCarriesImage(t *testing.T) {
+	ps, err := spots.Parse([]byte("spots:\n  - { id: g, kind: gif, image: sunset.gif, title: \"Evening\" }\n  - { id: a, title: \"Spot A\" }\n"), 120)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Spots{Pool: ps, Title: panel.Card4x6, Rand: rand.New(rand.NewPCG(1, 2))}
+	items, err := s.Build(context.Background(), time.Now(), schedule.Params{"kinds": "gif"})
+	if err != nil || len(items) != 1 || items[0].Image != "sunset.gif" || items[0].Title != "Evening" {
+		t.Fatalf("gif spot = %+v, %v", items, err)
+	}
+	items, _ = s.Build(context.Background(), time.Now(), schedule.Params{"ids": "a"})
+	if len(items) != 1 || items[0].Image != "" {
+		t.Fatalf("text spot = %+v", items)
+	}
+}

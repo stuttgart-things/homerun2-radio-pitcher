@@ -35,7 +35,7 @@ Each programme item is one homerun2 message. The led-catcher renders it as a
 | `severity` | `INFO` (`RADIO_SEVERITY`) |
 | `title` | short and fitted to the card: by default 4 lines of 16 characters (the catcher's 4x6 font), shortened at a word boundary with `…` |
 | `message` | the scrolling line, at most 120 characters (`RADIO_MESSAGE_MAX`) |
-| `tags` | `segment=<name>`, e.g. `segment=news`, then the slot's `card-tags` (e.g. `segment=news,show=news`). A catcher rule can filter on them with `tags: [segment=news]` |
+| `tags` | `segment=<name>`, e.g. `segment=news`, then the slot's `card-tags` (e.g. `segment=news,show=news`), then `gif=<image>` for a card with a picture (a gif spot). A catcher rule can filter on them with `tags: [segment=news]` |
 | `url` | the article of a news card (the feed's link), the release page of a releases card; empty for the other segments |
 | `author` | `radio` (`RADIO_AUTHOR`), the card's footer |
 | `timestamp` | when the item was pitched, RFC 3339 |
@@ -58,6 +58,23 @@ displayRules:
     kind: card
     strip_prefix: true
     duration: 12
+    ambient: true
+```
+
+A card with a picture (a `gif` spot) carries `gif=<image>`: a file in the
+catcher's `visual_aid/` or an `https://` URL. To play it before the card,
+add an overlay rule **above** `radio` (led-catcher #148): its `image`
+renders empty for every other card, so the rule does not match them and
+`radio` draws them as before. Without the rule the card airs alone.
+
+```yaml
+  radio-gif:
+    systems: [radio]
+    severity: [INFO]
+    kind: gif
+    image: "{{ tag('gif') }}"
+    overlay: true
+    duration: 6
     ambient: true
 ```
 
@@ -174,7 +191,7 @@ The full examples are [`examples/schedule.yaml`](examples/schedule.yaml),
 | `did-you-know` | `count` (1), `kinds` (catalog kinds, default `component`, `system`, `api`, `resource`), `types` (`spec.type`, e.g. `service`, `website`; default any) | a random entry of the [Backstage](https://backstage.io) catalog (`RADIO_BACKSTAGE_URL`) whose description says more than its name, never a `deprecated` one (`spec.lifecycle`): `Did you know? homerun2-scout` / `homerun2-scout: Analytics for homerun2 messages`. With moderation, one casual sentence that must keep the entry's name and add no number; else the fixed text. An aired entry is not repeated within `RADIO_DID_YOU_KNOW_SEEN_FOR` |
 | `rollouts` | `count` (1), `within` (Go duration, default `6h`), `namespaces` (default all), `kinds` (`deployment`, `statefulset`, `daemonset`, `helmrelease`; default all) | what was deployed lately in the clusters of `sources.yaml`: a `kubernetes` source gives Deployments (newest ReplicaSet), StatefulSets and DaemonSets (newest ControllerRevision) whose current revision is younger than `within`, with the first container's image tag: `Deployed: homerun2-radio-pitcher v0.15.0` / `labul: homerun2-radio-pitcher v0.15.0 rolled out in homerun2 at 14:54` (`deployed` for a first revision); a `flux` source gives HelmReleases whose current Helm revision is that young: `labul: Helm release cert-manager upgraded to chart v1.15.0 in cert-manager at 14:30`. Rollouts of one namespace within 10 minutes share a card: `Deployed: 7 in argocd` / `labul: 7 rollouts in argocd at 12:15: argocd-server v3.6.2, …`. Newest first, each rollout airs once (kept 48 h). Fixed texts, never reworded |
 | `releases` | `count` (1), `within` (Go duration, default `24h`), `repos` (names without the org; default all) | the releases `RADIO_RELEASES_ORG` published lately, from the org's public GitHub events (one request, cached 10 min; no drafts, no prereleases), newest first, each once (kept 72 h): `Released: homerun2-radio-pitcher v0.15.0` / `homerun2-radio-pitcher v0.15.0: news mix lets the feeds take turns` (the first entry of the release notes as plain text; without one `stuttgart-things released argocd v0.119.0 at 13:00`). Fixed texts. Releases of other projects (Flux, Kubernetes, …) need no code: put `https://github.com/<owner>/<repo>/releases.atom` into `RADIO_NEWS_FEEDS` |
-| `spots` | `count` (1), `kinds` (`text`, `quote`; default both), `ids` (only these) | short cards from the pool in [`spots.yaml`](examples/spots.yaml) (`RADIO_SPOTS_PATH`), like a radio's commercial breaks: a weighted random pick among the spots active now (`weekdays`, `between`, `from`/`until`), never one of the last 3 aired while others are active. A text spot is its `title` and `message` (`Lunch at 12` / `Time for a break: …`), a quote `Quote: Donald Knuth` / `“Premature optimization is the root of all evil.” Donald Knuth`. Fixed texts, never reworded or cut: validation fails on a line longer than `RADIO_MESSAGE_MAX` |
+| `spots` | `count` (1), `kinds` (`text`, `quote`, `gif`; default all), `ids` (only these) | short cards from the pool in [`spots.yaml`](examples/spots.yaml) (`RADIO_SPOTS_PATH`), like a radio's commercial breaks: a weighted random pick among the spots active now (`weekdays`, `between`, `from`/`until`), never one of the last 3 aired while others are active. A text spot is its `title` and `message` (`Lunch at 12` / `Time for a break: …`); a gif spot the same card with `gif=<image>` in its tags, which a catcher rule plays first (see [Message format](#message-format)); a quote `Quote: Donald Knuth` / `“Premature optimization is the root of all evil.” Donald Knuth`. Fixed texts, never reworded or cut: validation fails on a line longer than `RADIO_MESSAGE_MAX` |
 
 A segment with nothing to say (every headline seen, every source down) airs
 nothing, and the panel keeps its idle clock.

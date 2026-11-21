@@ -42,7 +42,7 @@ on a free panel. Concept: stuttgart-things/homerun-library#146.
   `infra-facts` (random pick, avoids recent), `rollouts` (`RolloutSource`
   of the kubernetes/flux sources, grouped per namespace), `releases`
   (GitHub org events, `internal/github`), `spots` (pool from
-  `spots.yaml`, `internal/spots`, weighted pick, avoids recent; UI page
+  `spots.yaml`, `internal/spots`, text, quote and gif spots, weighted pick, avoids recent; UI page
   `/spots`); `intro.go`: `Host` and
   `Registry.WithIntros` (slot param `intro: true`)
 - `internal/sources`: `Source` interface, `sources.yaml`; `Kubernetes`

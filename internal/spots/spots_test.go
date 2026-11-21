@@ -85,14 +85,19 @@ spots:
   - { id: dup, title: b }
   - { id: q, kind: quote, text: "only text" }
   - { id: mixed, title: t, author: someone }
-  - { id: kind, kind: gif }
+  - { id: kind, kind: video }
+  - { id: gifless, kind: gif, title: t }
+  - { id: gifpath, kind: gif, title: t, image: ../etc/x.gif }
+  - { id: gifhttp, kind: gif, title: t, image: "http://example.com/a.gif" }
+  - { id: gifcomma, kind: gif, title: t, image: "a,b.gif" }
+  - { id: textimg, title: t, image: a.gif }
   - { id: long, title: t, message: "`+strings.Repeat("x", 121)+`" }
   - { id: day, title: t, weekdays: [funday] }
   - { id: window, title: t, between: "25:00-26:00" }
   - { id: dates, title: t, from: 2026-12-02, until: 2026-11-20 }
   - { id: weight, title: t, weight: -1 }
 `), 120)
-	for _, want := range []string{"spot 1: no id", `"dup": id given twice`, "needs text and author", "belong to quote spots", `kind "gif"`, "121 characters", `weekday "funday"`, `between "25:00-26:00"`, "is after until", "weight -1"} {
+	for _, want := range []string{"spot 1: no id", `"dup": id given twice`, "needs text and author", "belong to quote spots", `kind "video"`, `"gifless": needs an image`, "not a path", "only https://", "has a comma", "image belongs to gif spots", "121 characters", `weekday "funday"`, `between "25:00-26:00"`, "is after until", "weight -1"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("errors lack %q:\n%v", want, err)
 		}
@@ -130,5 +135,21 @@ func TestWhen(t *testing.T) {
 		if got := s.When(); got != want[i] {
 			t.Errorf("%s: When() = %q, want %q", s.ID, got, want[i])
 		}
+	}
+}
+
+func TestGIFSpot(t *testing.T) {
+	ps, err := Parse([]byte(`spots:
+  - { id: sun, kind: gif, image: sunset.gif, title: "Good evening" }
+  - { id: web, kind: gif, image: "https://example.com/a.gif?x=1", title: "Web", message: "from the web" }
+`), 120)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if title, msg := ps[0].Card(); title != "Good evening" || msg != "Good evening" || ps[0].Image != "sunset.gif" {
+		t.Errorf("gif spot card = %q / %q, image %q", title, msg, ps[0].Image)
+	}
+	if ps[1].Image != "https://example.com/a.gif?x=1" {
+		t.Errorf("url image = %q", ps[1].Image)
 	}
 }

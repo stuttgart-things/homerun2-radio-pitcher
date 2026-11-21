@@ -22,16 +22,22 @@ import (
 const (
 	KindText  = "text"  // title + scrolling line
 	KindQuote = "quote" // a quote and who said it
+	KindGIF   = "gif"   // a picture the catcher plays, then a text card
 )
 
 // Spot is one entry of the pool.
 type Spot struct {
 	ID   string `yaml:"id"`
-	Kind string `yaml:"kind"` // text (default) or quote
+	Kind string `yaml:"kind"` // text (default), quote or gif
 
-	// text
+	// text and gif
 	Title   string `yaml:"title"`
 	Message string `yaml:"message"` // optional; the title scrolls without it
+
+	// gif: a file in the catcher's visual_aid/ or an https:// URL. The card
+	// carries it as the tag gif=<image>; a catcher without a rule for it
+	// shows the card alone.
+	Image string `yaml:"image"`
 
 	// quote
 	Text   string `yaml:"text"`
@@ -152,25 +158,33 @@ func Parse(data []byte, maxLen int) ([]Spot, error) {
 		if s.Kind == "" {
 			s.Kind = KindText
 		}
+		s.Image = strings.TrimSpace(s.Image)
 		switch s.Kind {
-		case KindText:
+		case KindText, KindGIF:
 			s.Title, s.Message = strings.TrimSpace(s.Title), strings.TrimSpace(s.Message)
 			if s.Title == "" {
-				bad("a text spot needs a title")
+				bad("a %s spot needs a title", s.Kind)
 			}
 			if s.Text != "" || s.Author != "" {
 				bad("text and author belong to quote spots")
+			}
+			if s.Kind == KindGIF {
+				if err := CheckImage(s.Image); err != nil {
+					bad("%v", err)
+				}
+			} else if s.Image != "" {
+				bad("image belongs to gif spots")
 			}
 		case KindQuote:
 			s.Text, s.Author = strings.TrimSpace(s.Text), strings.TrimSpace(s.Author)
 			if s.Text == "" || s.Author == "" {
 				bad("a quote spot needs text and author")
 			}
-			if s.Title != "" || s.Message != "" {
-				bad("title and message belong to text spots")
+			if s.Title != "" || s.Message != "" || s.Image != "" {
+				bad("title, message and image do not belong to quote spots")
 			}
 		default:
-			bad("kind %q, want text or quote", s.Kind)
+			bad("kind %q, want text, quote or gif", s.Kind)
 		}
 		if _, msg := s.Card(); maxLen > 0 && utf8.RuneCountInString(msg) > maxLen {
 			bad("scrolling line has %d characters, the panel takes %d (spots are never cut)", utf8.RuneCountInString(msg), maxLen)
@@ -219,6 +233,25 @@ func Parse(data []byte, maxLen int) ([]Spot, error) {
 		return nil, errors.Join(errs...)
 	}
 	return f.Spots, nil
+}
+
+// CheckImage checks a picture for the catcher: a file name in its
+// visual_aid/ (no path) or an https:// URL, without a comma (it travels in
+// the comma-separated tags).
+func CheckImage(image string) error {
+	switch {
+	case image == "":
+		return errors.New("needs an image: a file in the catcher's visual_aid/ or an https:// URL")
+	case strings.ContainsAny(image, ", \t\n"):
+		return fmt.Errorf("image %q has a comma or a space", image)
+	case strings.HasPrefix(image, "https://"):
+		return nil
+	case strings.Contains(image, "://"):
+		return fmt.Errorf("image %q: only https:// URLs", image)
+	case strings.ContainsAny(image, "/\\") || strings.HasPrefix(image, "."):
+		return fmt.Errorf("image %q: a file name in visual_aid/, not a path", image)
+	}
+	return nil
 }
 
 func clock(s string) (int, error) {

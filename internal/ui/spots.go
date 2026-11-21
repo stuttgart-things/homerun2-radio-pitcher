@@ -19,6 +19,7 @@ type spotsView struct {
 type spotRow struct {
 	ID, Kind  string
 	Card      card
+	Image     string
 	Weight    int
 	When      string
 	ActiveNow bool
@@ -70,6 +71,7 @@ func (s *Server) spotsPage(w http.ResponseWriter, r *http.Request) {
 			ID:        sp.ID,
 			Kind:      sp.Kind,
 			Card:      card{Lines: panel.Wrap(title, s.Title.Width), Fits: s.Title.Fits(title), Message: msg},
+			Image:     sp.Image,
 			Weight:    sp.Weighting(),
 			When:      sp.When(),
 			ActiveNow: sp.Active(sv.Now),

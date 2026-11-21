@@ -34,7 +34,7 @@ func TestReleases(t *testing.T) {
 			ev("ReleaseEvent", "stuttgart-things/backstage", "published", "v1.31.1", now.Add(-3*time.Hour), false),
 			ev("ReleaseEvent", "stuttgart-things/old", "published", "v1.0.0", now.Add(-48*time.Hour), false),
 		}
-		fmt.Fprint(w, "["+strings.Join(evs, ",")+"]")
+		_, _ = fmt.Fprint(w, "["+strings.Join(evs, ",")+"]")
 	}))
 	defer srv.Close()
 
