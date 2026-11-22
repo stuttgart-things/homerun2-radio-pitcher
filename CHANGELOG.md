@@ -1,3 +1,10 @@
+## [0.21.1](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.21.0...v0.21.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* later slots of a block are stamped when they air ([afe6a2f](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/afe6a2f0287f832ddaafeabf05bdd8095e36bee1)), closes [#69](https://github.com/stuttgart-things/homerun2-radio-pitcher/issues/69)
+
 # [0.21.0](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.20.0...v0.21.0) (2026-11-21)
 
 
