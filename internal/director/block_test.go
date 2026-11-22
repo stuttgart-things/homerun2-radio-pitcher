@@ -89,3 +89,24 @@ clock:
 		t.Errorf("first aired image = %q", a.Image)
 	}
 }
+
+func TestBlockSlotStampedWhenAired(t *testing.T) {
+	tc := &countSeg{name: "time-check", n: 1}
+	news := &countSeg{name: "news", n: 1}
+	d, _, _ := setup(t, `
+clock:
+  ":00":
+    - { segment: time-check }
+    - { segment: news, count: 1 }
+`, tc, news)
+	d.Sleep = func(context.Context, time.Duration) error { time.Sleep(30 * time.Millisecond); return nil }
+	tick := time.Date(2026, 11, 17, 14, 0, 0, 0, time.UTC)
+	d.Tick(context.Background(), tick, false)
+	got := d.Recent(2) // newest first
+	if !got[1].At.Equal(tick) {
+		t.Errorf("first slot at %v, want the tick %v", got[1].At, tick)
+	}
+	if !got[0].At.After(tick.Add(20 * time.Millisecond)) {
+		t.Errorf("second slot at %v, want when it aired, after the gap", got[0].At)
+	}
+}
