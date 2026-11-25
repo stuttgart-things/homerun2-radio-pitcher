@@ -82,6 +82,31 @@ The catcher keeps only the newest ambient card. When a slot has several
 items (`count: 3`), the pitcher therefore spaces them by `RADIO_ITEM_SPACING`
 (default 15s, a little longer than the card's `duration`).
 
+### Pictures (MinIO bucket)
+
+Pictures for gif spots and jingles are not baked into the catcher image and
+not generated at runtime: they are drawn once (by script or by hand, at
+panel size, own work only) and uploaded to an S3 bucket that allows
+anonymous `GetObject`, for example `homerun2-visuals` on the lab MinIO. A
+spot or a slot's `jingle` then names the object's URL:
+
+```yaml
+# spots.yaml
+  - id: station-id
+    kind: gif
+    image: https://<minio-host>/homerun2-visuals/sthings-neutral-schwarz-v1.gif
+    title: "homerun2 radio"
+```
+
+- The catcher fetches the URL, so the catcher (not the pitcher) must reach
+  the bucket and trust its certificate (e.g. a cluster trust bundle as
+  `SSL_CERT_FILE` in the catcher pod).
+- https only (`validate` rejects other schemes); the catcher accepts at most
+  10 MB and 2048x2048 per frame.
+- The catcher caches by URL: a changed picture gets a **new file name**
+  (`-v2.gif`), never an overwrite.
+- Listing the bucket stays forbidden; read access by exact name is enough.
+
 ## Schedule (`schedule.yaml`)
 
 The schedule lives in git and is changed by PR. When the file changes (for
