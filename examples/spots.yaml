@@ -13,7 +13,8 @@
 #                         the image, then the card (needs the radio-gif
 #                         rule in its profile; without it the card airs
 #                         alone). image: a file in the catcher's
-#                         visual_aid/ or an https:// URL
+#                         visual_aid/ or an https:// URL, e.g. an object
+#                         in the pictures bucket (README: Pictures)
 #   weight     how often it comes up against the others (default 1, 0 off)
 #   weekdays   [mon, tue, wed, thu, fri, sat, sun]; empty: every day
 #   between    "11:00-12:00" (end exclusive, may cross midnight)
