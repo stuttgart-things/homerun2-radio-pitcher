@@ -1,3 +1,10 @@
+## [0.21.3](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.21.2...v0.21.3) (2026-11-25)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/redis/go-redis/v9 to v9.24.0 ([300ef3c](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/300ef3c0b864cc9dfb9769ae3981ba371197bdff))
+
 ## [0.21.2](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.21.1...v0.21.2) (2026-11-25)
 
 
