@@ -5,7 +5,7 @@ go 1.26.11
 require (
 	github.com/prometheus/client_golang v1.25.0
 	github.com/redis/go-redis/v9 v9.23.0
-	github.com/stuttgart-things/homerun-library/v4 v4.6.0
+	github.com/stuttgart-things/homerun-library/v4 v4.7.0
 	go.yaml.in/yaml/v3 v3.0.6
 	go.yaml.in/yaml/v4 v4.0.0
 	k8s.io/api v0.37.2
@@ -39,7 +39,7 @@ require (
 	github.com/gomodule/redigo v1.9.3 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/jedib0t/go-pretty/v6 v6.8.3 // indirect
+	github.com/jedib0t/go-pretty/v6 v6.9.3 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mattn/go-runewidth v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -49,6 +49,7 @@ require (
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.72.0 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.uber.org/atomic v1.12.0 // indirect
