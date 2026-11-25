@@ -1,3 +1,10 @@
+## [0.21.2](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.21.1...v0.21.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/stuttgart-things/homerun-library/v4 to v4.7.0 ([d889444](https://github.com/stuttgart-things/homerun2-radio-pitcher/commit/d8894448c66d5c8275d3f3062c672d56b699e186))
+
 ## [0.21.1](https://github.com/stuttgart-things/homerun2-radio-pitcher/compare/v0.21.0...v0.21.1) (2026-11-22)
 
 
