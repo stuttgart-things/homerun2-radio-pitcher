@@ -4,7 +4,7 @@ go 1.26.11
 
 require (
 	github.com/prometheus/client_golang v1.25.0
-	github.com/redis/go-redis/v9 v9.24.0
+	github.com/redis/go-redis/v9 v9.24.1
 	github.com/stuttgart-things/homerun-library/v4 v4.7.0
 	go.yaml.in/yaml/v3 v3.0.6
 	go.yaml.in/yaml/v4 v4.0.0
